@@ -1,9 +1,11 @@
 from mesa import Agent, Model
 from mesa.time import RandomActivation
+from mesa.datacollection import DataCollector
 from numpy import random
+import pandas
 
-items = ["red", "blue", "green", "orange"]
-prices = {"red": 10, "blue": 5, "green": 7, "orange": 12}
+items = ["red", "blue", "green", "orange", "purple", "yellow"]
+prices = {"red": 10, "blue": 5, "green": 7, "orange": 12, "purple": 3, "yellow": 20}
 listing = []
 orders = []
 deliveries = []
@@ -43,7 +45,6 @@ class orderTrack():
     def __str__(self):
         return f"BuyerID: {self.BuyerID}, SellerID: {self.SellerID}, Due: {self.ExpectedArrivalDate}, Sale: {self.SaleDate}, Actual: {self.ActualArrivalDate}"
 
-
 class Buyer(Agent):
     def __init__(self, unique_id):
         self.unique_id = unique_id
@@ -52,9 +53,10 @@ class Buyer(Agent):
         self.inventory = []
         self.MSRPs = []
         self.orders = []
-        self.patience = 0
+        self.patience = int(random.triangular(1, 3, 5))
 
     def evaluateItems(self):
+        '''Returns a single item in the market (or sometimes none), that the buyer should buy'''
         provisionalOrder = []
         MaxPercent = 5
         MaxPercentPrice = 0
@@ -62,11 +64,14 @@ class Buyer(Agent):
         MaxPercentItem = None
         CheapFirstPrice = 100
         CheapFirstSeller = 0
+        HighScore = 0
+        HighScoreInd = 0
+        HighScorePrice = 0
 
         self.MSRPs = []
         if len(self.desires) > 0:
-            for x in range(len(self.desires)):
-                self.MSRPs.append(prices[self.desires[x]])
+            for z in range(len(self.desires)):
+                self.MSRPs.append(prices[self.desires[z]])
 
             for x in range(len(self.desires)):
                 for y in range(len(listing)):
@@ -87,6 +92,7 @@ class Buyer(Agent):
                                 MaxPercentInd = listing[y][2]
                                 MaxPercentItem = self.desires[x]
 
+                    #Buys first item in desires at cheapest price
                     if self.desires[0] in listing[y][0]:
                         ind = listing[y][0].index(self.desires[0])
                         price = listing[y][1][ind]
@@ -94,31 +100,61 @@ class Buyer(Agent):
                             CheapFirstPrice = price
                             CheapFirstSeller = listing[y][2]
 
+                    #Buys First item from highest reputation seller
+                    if self.desires[0] in listing[y][0]:
+                        ind_feedback = Test.feedback[listing[y][2]]
+                        positive = 0
+                        negative = 0
+                        for q in range(len(ind_feedback)):
+                            if ind_feedback[q] == True:
+                                positive += 1
+                            elif ind_feedback[q] == False:
+                                negative += 1
+                        try:
+                            score = positive / (positive + negative)
+                        except ZeroDivisionError:
+                            score = 0
+                        if score > HighScore:
+                            HighScore = score
+                            HighScoreInd = listing[y][2]
+                            ind = listing[y][0].index(self.desires[0])
+                            HighScorePrice = listing[y][1][ind]
+
             MaxPercentResult = orderSheet(self.unique_id, MaxPercentInd, MaxPercentPrice, MaxPercentItem)
             FirstListedItem = orderSheet(self.unique_id, CheapFirstSeller, CheapFirstPrice, self.desires[0])
-            tempIndicator = random.randint(0, 1)
+            BestFeedback = orderSheet(self.unique_id, HighScoreInd, HighScorePrice, self.desires[0])
 
-            if tempIndicator == 0:
+            tempIndicator = random.randint(1, 2)
+            #tempIndicator = 2
+
+            '''if tempIndicator == 0:
                 return MaxPercentResult
             elif tempIndicator == 1:
-                return FirstListedItem
-            return provisionalOrder
+                return FirstListedItem'''
+            #TODO: Make buyer decision making more atomic (functions?)
+            while Test.epoch < 25:
+                tempIndicator = random.randint(1, 2)
+                # tempIndicator = 2
+                if tempIndicator == 0:
+                    return MaxPercentResult
+                elif tempIndicator == 1:
+                    return FirstListedItem
+            while Test.epoch >= 25:
+                return BestFeedback
+
         else:
             provisionalOrder = None
             return provisionalOrder
 
     def makePurchase(self):
+        '''Acts on the recommendation of the self.evaluateItems function'''
         order = self.evaluateItems()
         if order != None:
             if self.wealth > order.price:
                 self.wealth -= order.price
                 #TODO: Expectations are always the same at the moment for buyers
-                order.ExpectedArrivalDate, order.SaleDate = Test.epoch + 5, Test.epoch
+                order.ExpectedArrivalDate, order.SaleDate = Test.epoch + 5 + self.patience, Test.epoch
                 orders.append(order)
-                '''NEEDS BETTER CALCULATION BASED ON PARAMETERS'''
-                #dueDate = Test.epoch + 5
-                #incomingOrder = orderTrack(self.unique_id, order.SellerID, Test.epoch, dueDate)
-                #self.orders.append(incomingOrder)
                 self.desires[self.desires.index(order.item)] = None
 
             delList = []
@@ -134,6 +170,7 @@ class Buyer(Agent):
             pass
 
     def evaluateOrders(self):
+        '''Checks all active orders to see if items have arrived or not'''
         for i in range(len(orders)):
             if orders[i].BuyerID == self.unique_id:
                 if Test.epoch == orders[i].ActualArrivalDate:
@@ -172,9 +209,8 @@ class Seller(Agent):
         self.tracking = []
         for i in range(len(self.inventory)):
             self.tracking.append([0,0])
-
         self.accuracy = int(random.triangular(1, 35, 50))
-        self.speed = int(random.triangular(2, 5, 8))
+        self.speed = int(random.triangular(2, 4, 6))
 
         for x in range(len(self.inventory)):
             temp = prices[self.inventory[x]]
@@ -185,11 +221,12 @@ class Seller(Agent):
 
     def generateDeliveryTime(self, date):
         test_digit = random.randint(0, self.accuracy)
+        singleUseSpeed = int(random.triangular(self.speed - 2, self.speed, self.speed + 2))
         #TODO: Make delivery time rely more heavily on parameters
         if test_digit < 3:
-            return (date + self.speed + 5)
+            return (date + singleUseSpeed + 5)
         else:
-            return (date + self.speed)
+            return (date + singleUseSpeed)
 
     def orderCheck(self):
         for y in range(len(orders)):
@@ -234,6 +271,16 @@ class Seller(Agent):
         if self.unique_id == 3:
             print(self)
 
+class Attacker():
+    def __init__(self, wealth = 0):
+        self.wealth = wealth
+
+    def selfEnrich(self):
+        self.wealth += 1
+
+    def step(self):
+        self.selfEnrich()
+
 class Market(Model):
     def __init__(self, B = 100, S = 35):
         self.numOfBuyers = B
@@ -248,9 +295,13 @@ class Market(Model):
             a = Seller(i)
             self.schedule.add(a)
 
-        for i in range(0, self.numOfBuyers * 2, 2):
+        for i in range(2, self.numOfBuyers * 2, 2):
             a = Buyer(i)
             self.schedule.add(a)
+
+        self.datacollector = DataCollector(
+            agent_reporters={"wealth": "wealth"}
+        )
 
     def calculateSellerTrust(self):
         for i in range(len(self.feedback)):
@@ -263,7 +314,7 @@ class Market(Model):
                     elif self.feedback[i][j] == False:
                         neg += 1
 
-                print(f"Seller No: {i}, Positive: {pos}, Negative: {neg}")
+                print(f"Seller No: {i}, Positive: {pos}, Negative: {neg}, Total: {pos+neg}")
 
     def step(self):
         self.schedule.step()
@@ -272,11 +323,16 @@ class Market(Model):
         print(self.epoch)
         self.calculateSellerTrust()
 
+
 Test = Market()
+Attack = Attacker()
 
 while True:
-    input("Continue?")
-    Test.step()
+    steps = int(input("Continue?"))
+    for x in range(steps):
+        Test.step()
+        Attack.step()
+
 
 
 
