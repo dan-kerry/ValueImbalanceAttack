@@ -1,8 +1,11 @@
 from mesa import Agent, Model
 from mesa.time import RandomActivation
-from mesa.datacollection import DataCollector
 from numpy import random
-import pandas
+import pandas as pd
+import pickle
+import math
+
+'''Is mesa.DataCollector a usable solution?'''
 
 items = ["red", "blue", "green", "orange", "purple", "yellow"]
 prices = {"red": 10, "blue": 5, "green": 7, "orange": 12, "purple": 3, "yellow": 20}
@@ -55,6 +58,7 @@ class Buyer(Agent):
         self.orders = []
         self.patience = int(random.triangular(1, 3, 5))
 
+    #TODO: BUY THE CHEAPEST ABOVE A THRESHOLD (I.E. THEIR RISK TOLERANCE)
     def evaluateItems(self):
         '''Returns a single item in the market (or sometimes none), that the buyer should buy'''
         provisionalOrder = []
@@ -152,7 +156,6 @@ class Buyer(Agent):
         if order != None:
             if self.wealth > order.price:
                 self.wealth -= order.price
-                #TODO: Expectations are always the same at the moment for buyers
                 order.ExpectedArrivalDate, order.SaleDate = Test.epoch + 5 + self.patience, Test.epoch
                 orders.append(order)
                 self.desires[self.desires.index(order.item)] = None
@@ -176,12 +179,10 @@ class Buyer(Agent):
                 if Test.epoch == orders[i].ActualArrivalDate:
                     if orders[i].ActualArrivalDate > orders[i].ExpectedArrivalDate:
                         Test.feedback[orders[i].SellerID].append(False)
+
                     elif orders[i].ActualArrivalDate <= orders[i].ExpectedArrivalDate:
                         Test.feedback[orders[i].SellerID].append(True)
                         self.inventory.append(orders[i].item)
-
-    def leaveFeedback(self):
-        pass
 
     def newItems(self):
         if self.desires == []:
@@ -216,7 +217,6 @@ class Seller(Agent):
             temp = prices[self.inventory[x]]
             temp = int(random.triangular(temp-2, temp, temp+2))
             self.prices.append(temp)
-
         listing.append([self.inventory, self.prices, self.unique_id])
 
     def generateDeliveryTime(self, date):
@@ -258,6 +258,8 @@ class Seller(Agent):
                 #Setting new prices for regenerated items
                 newPrice = int(random.triangular(prices[newitem]-2, prices[newitem], prices[newitem]+2))
                 self.prices[i] = newPrice
+                index_loc = math.floor((self.unique_id / 2))
+                listing[index_loc][0], listing[index_loc][1]  = self.inventory, self.prices
             if self.tracking[i][1] > reductionLimit:
                 self.prices[i] -= 1
                 self.tracking[i][1] = 0
@@ -268,18 +270,18 @@ class Seller(Agent):
     def step(self):
         self.orderCheck()
         self.updatePrices()
-        if self.unique_id == 3:
-            print(self)
 
 class Attacker():
     def __init__(self, wealth = 0):
         self.wealth = wealth
+        self.inventory = ["yellow"]
 
-    def selfEnrich(self):
-        self.wealth += 1
+    def createListing(self):
+        fake_listing = [["blue"], [2], 0]
+        listing.append(fake_listing)
 
     def step(self):
-        self.selfEnrich()
+        self.createListing()
 
 class Market(Model):
     def __init__(self, B = 100, S = 35):
@@ -288,20 +290,19 @@ class Market(Model):
         self.schedule = RandomActivation(self)
         self.epoch = 0
         self.feedback = []
+        self.dataReturn = []
+
         for x in range(1000):
             self.feedback.append([])
-
-        for i in range(1, self.numOfSellers * 2, 2):
-            a = Seller(i)
-            self.schedule.add(a)
 
         for i in range(2, self.numOfBuyers * 2, 2):
             a = Buyer(i)
             self.schedule.add(a)
 
-        self.datacollector = DataCollector(
-            agent_reporters={"wealth": "wealth"}
-        )
+        for i in range(1, self.numOfSellers * 2, 2):
+            b = Seller(i)
+            self.schedule.add(b)
+
 
     def calculateSellerTrust(self):
         for i in range(len(self.feedback)):
@@ -313,8 +314,18 @@ class Market(Model):
                         pos += 1
                     elif self.feedback[i][j] == False:
                         neg += 1
-
                 print(f"Seller No: {i}, Positive: {pos}, Negative: {neg}, Total: {pos+neg}")
+
+    def storeData(self):
+        cols = ["wealth"]
+        BuyerDF = pd.DataFrame(columns=cols, index=range(self.numOfBuyers))
+        SellerDF = pd.DataFrame()
+        pos = 0
+        for agent in Test.schedule.agents:
+            if agent.unique_id % 2 == 0:
+                BuyerDF.loc[pos].wealth = agent.wealth
+                pos += 1
+        self.dataReturn.append(BuyerDF)
 
     def step(self):
         self.schedule.step()
@@ -322,19 +333,18 @@ class Market(Model):
         #print(listing)
         print(self.epoch)
         self.calculateSellerTrust()
+        self.storeData()
+
+def exportData(dataSet, fileName):
+    pickle.dump(dataSet, open(fileName, "wb"))
 
 
 Test = Market()
 Attack = Attacker()
 
-while True:
-    steps = int(input("Continue?"))
-    for x in range(steps):
-        Test.step()
-        Attack.step()
 
-
-
-
-
-
+steps = int(input("No. of Epochs?"))
+for x in range(steps):
+    Test.step()
+    Attack.step()
+#exportData(Test.dataReturn, "TestOutput")
