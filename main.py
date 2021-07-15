@@ -271,6 +271,7 @@ class Seller(Agent):
         self.orderCheck()
         self.updatePrices()
 
+
 class Attacker():
     def __init__(self, wealth = 0):
         self.wealth = wealth
@@ -282,6 +283,7 @@ class Attacker():
 
     def step(self):
         self.createListing()
+        #Gets added every time #FIXME
 
 class Market(Model):
     def __init__(self, B = 100, S = 35):
@@ -347,4 +349,5 @@ steps = int(input("No. of Epochs?"))
 for x in range(steps):
     Test.step()
     Attack.step()
-#exportData(Test.dataReturn, "TestOutput")
+    print(listing)
+exportData(Test.dataReturn, "TestOutput")
