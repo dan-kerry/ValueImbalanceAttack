@@ -56,21 +56,29 @@ class Buyer(Agent):
         self.inventory = []
         self.MSRPs = []
         self.orders = []
+        self.orderCount = 0
         self.patience = int(random.triangular(1, 3, 5))
+
+    def sellerDishonestyBinary(self, list):
+        pos = 0
+        neg = 0
+        for x in range(len(list)):
+            if list[x] == True:
+                pos += 1
+            elif list[x] == False:
+                neg += 1
+            else:
+                pass
+        chance = (pos + 1) / (neg + pos + 2)
+        return chance
 
     #TODO: BUY THE CHEAPEST ABOVE A THRESHOLD (I.E. THEIR RISK TOLERANCE)
     def evaluateItems(self):
         '''Returns a single item in the market (or sometimes none), that the buyer should buy'''
-        provisionalOrder = []
         MaxPercent = 5
         MaxPercentPrice = 0
         MaxPercentInd = 0
         MaxPercentItem = None
-        CheapFirstPrice = 100
-        CheapFirstSeller = 0
-        HighScore = 0
-        HighScoreInd = 0
-        HighScorePrice = 0
 
         self.MSRPs = []
         if len(self.desires) > 0:
@@ -96,68 +104,44 @@ class Buyer(Agent):
                                 MaxPercentInd = listing[y][2]
                                 MaxPercentItem = self.desires[x]
 
-                    #Buys first item in desires at cheapest price
-                    if self.desires[0] in listing[y][0]:
-                        ind = listing[y][0].index(self.desires[0])
-                        price = listing[y][1][ind]
-                        if price < CheapFirstPrice:
-                            CheapFirstPrice = price
-                            CheapFirstSeller = listing[y][2]
-
-                    #Buys First item from highest reputation seller
-                    if self.desires[0] in listing[y][0]:
-                        ind_feedback = Test.feedback[listing[y][2]]
-                        positive = 0
-                        negative = 0
-                        for q in range(len(ind_feedback)):
-                            if ind_feedback[q] == True:
-                                positive += 1
-                            elif ind_feedback[q] == False:
-                                negative += 1
-                        try:
-                            score = positive / (positive + negative)
-                        except ZeroDivisionError:
-                            score = 0
-                        if score > HighScore:
-                            HighScore = score
-                            HighScoreInd = listing[y][2]
-                            ind = listing[y][0].index(self.desires[0])
-                            HighScorePrice = listing[y][1][ind]
-
             MaxPercentResult = orderSheet(self.unique_id, MaxPercentInd, MaxPercentPrice, MaxPercentItem)
-            FirstListedItem = orderSheet(self.unique_id, CheapFirstSeller, CheapFirstPrice, self.desires[0])
-            BestFeedback = orderSheet(self.unique_id, HighScoreInd, HighScorePrice, self.desires[0])
-
-            tempIndicator = random.randint(1, 2)
-            #tempIndicator = 2
-
-            '''if tempIndicator == 0:
-                return MaxPercentResult
-            elif tempIndicator == 1:
-                return FirstListedItem'''
-            #TODO: Make buyer decision making more atomic (functions?)
-            while Test.epoch < 25:
-                tempIndicator = random.randint(1, 2)
-                # tempIndicator = 2
-                if tempIndicator == 0:
-                    return MaxPercentResult
-                elif tempIndicator == 1:
-                    return FirstListedItem
-            while Test.epoch >= 25:
-                return BestFeedback
-
+            return MaxPercentResult
         else:
-            provisionalOrder = None
-            return provisionalOrder
+            return None
+
+    def evaluateItemsBinary(self):
+        bestPrice = 1000
+        bestPriceID = 0
+        truePrice = 0
+        if len(self.desires) > 0:
+            for x in range(len(listing)):
+                if self.desires[0] in listing[x][0]:
+                    sellerRep = self.sellerDishonestyBinary(Test.feedback[listing[x][2]])
+                    ind = listing[x][0].index(self.desires[0])
+                    sellerPrice = listing[x][1][ind]
+                    riskAdjustedPrice = sellerPrice / sellerRep
+                    if riskAdjustedPrice < bestPrice:
+                        bestPrice = riskAdjustedPrice
+                        bestPriceID = listing[x][2]
+                        truePrice = sellerPrice
+            RiskAdjustedResult = orderSheet(self.unique_id, bestPriceID, truePrice, self.desires[0])
+            return RiskAdjustedResult
+        else:
+            return None
 
     def makePurchase(self):
         '''Acts on the recommendation of the self.evaluateItems function'''
-        order = self.evaluateItems()
+        if Test.epoch < 50:
+            order = self.evaluateItems()
+        elif Test.epoch >= 50:
+            order = self.evaluateItemsBinary()
+
         if order != None:
             if self.wealth > order.price:
                 self.wealth -= order.price
                 order.ExpectedArrivalDate, order.SaleDate = Test.epoch + 5 + self.patience, Test.epoch
                 orders.append(order)
+                self.orderCount += 1
                 self.desires[self.desires.index(order.item)] = None
 
             delList = []
@@ -276,14 +260,14 @@ class Attacker():
     def __init__(self, wealth = 0):
         self.wealth = wealth
         self.inventory = ["yellow"]
+        self.createListing()
 
     def createListing(self):
         fake_listing = [["blue"], [2], 0]
         listing.append(fake_listing)
 
     def step(self):
-        self.createListing()
-        #Gets added every time #FIXME
+        pass
 
 class Market(Model):
     def __init__(self, B = 100, S = 35):
@@ -292,7 +276,8 @@ class Market(Model):
         self.schedule = RandomActivation(self)
         self.epoch = 0
         self.feedback = []
-        self.dataReturn = []
+        #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
+        self.dataReturn = [[], [], []]
 
         for x in range(1000):
             self.feedback.append([])
@@ -304,7 +289,6 @@ class Market(Model):
         for i in range(1, self.numOfSellers * 2, 2):
             b = Seller(i)
             self.schedule.add(b)
-
 
     def calculateSellerTrust(self):
         for i in range(len(self.feedback)):
@@ -319,20 +303,22 @@ class Market(Model):
                 print(f"Seller No: {i}, Positive: {pos}, Negative: {neg}, Total: {pos+neg}")
 
     def storeData(self):
-        cols = ["wealth"]
+        cols = ["wealth", "purchases"]
         BuyerDF = pd.DataFrame(columns=cols, index=range(self.numOfBuyers))
         SellerDF = pd.DataFrame()
         pos = 0
         for agent in Test.schedule.agents:
             if agent.unique_id % 2 == 0:
                 BuyerDF.loc[pos].wealth = agent.wealth
+                BuyerDF.loc[pos].purchases = agent.orderCount
                 pos += 1
-        self.dataReturn.append(BuyerDF)
+
+        self.dataReturn[0].append(BuyerDF)
 
     def step(self):
         self.schedule.step()
         self.epoch += 1
-        #print(listing)
+        print(listing)
         print(self.epoch)
         self.calculateSellerTrust()
         self.storeData()
@@ -340,14 +326,12 @@ class Market(Model):
 def exportData(dataSet, fileName):
     pickle.dump(dataSet, open(fileName, "wb"))
 
-
 Test = Market()
 Attack = Attacker()
-
-
 steps = int(input("No. of Epochs?"))
 for x in range(steps):
     Test.step()
     Attack.step()
-    print(listing)
-exportData(Test.dataReturn, "TestOutput")
+
+
+exportData(Test.dataReturn, "TestOutput2")
