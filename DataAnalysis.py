@@ -25,11 +25,9 @@ def NoOfPurchases(data):
     ax = graph_data.hist(bins = 8)
     plt.show()
 
-
 def main():
     data = importData("TestOutput2")
     #BuyerWealthAnalysis(data)
     NoOfPurchases(data)
-
 
 main()
