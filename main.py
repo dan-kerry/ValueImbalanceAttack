@@ -5,7 +5,7 @@ import pandas as pd
 import pickle
 import math
 import os
-#Test Comments
+
 import time
 import matplotlib.pyplot as plt
 
@@ -18,7 +18,7 @@ prices = {"red": 10, "blue": 5, "green": 7, "orange": 12, "purple": 4, "yellow":
           "sapphire": 12, "sepia": 5, "tan": 4, "turqoise": 18, "vanilla": 10, "zomp": 50}
 
 listing = []
-orders = []
+
 deliveries = []
 oldestInteraction = 0
 
@@ -72,7 +72,6 @@ class Buyer(Agent):
         self.orders = []
         self.orderCount = 0
         self.patience = int(random.triangular(1, 3, 5))
-        self.patience = 3
         self.riskAversion = random.triangular(0.4, 0.85, 0.95)
         self.positiveInteractions = 0
         self.negativeInteractions = 0
@@ -113,7 +112,6 @@ class Buyer(Agent):
             MaxPercentResult = orderSheet(self.unique_id, MaxPercentInd, MaxPercentPrice, MaxPercentItem)
             if DealFound:
                 return MaxPercentResult
-
         else:
             return None
 
@@ -121,46 +119,45 @@ class Buyer(Agent):
         bestPrice = 1000
         bestPriceID = 0
         truePrice = 0
+        DealFound = False
+
         if len(self.desires) > 0:
-            for x in range(len(listing)):
-                if self.desires[0] in listing[x][0]:
-                    sellerRep = sellerDishonestyBinary(Test.feedback[listing[x][2]])
-                    if sellerRep < self.riskAversion:
-                        #print(f"Buyer: {self.unique_id} has a maximum risk of {self.riskAversion}, so would not trade with seller {listing[x][2]}, with a score of {sellerRep}")
-                        continue
-                    ind = listing[x][0].index(self.desires[0])
-                    sellerPrice = listing[x][1][ind]
-                    riskAdjustedPrice = sellerPrice / sellerRep
-                    if riskAdjustedPrice < bestPrice:
-                        bestPrice = riskAdjustedPrice
-                        bestPriceID = listing[x][2]
-                        truePrice = sellerPrice
+            for q in range(len(listing)):
+                if self.desires[0] in listing[q][0]:
+                    sellerRep = sellerDishonestyBinary(Test.feedback[listing[q][2]])
+                    if sellerRep > self.riskAversion:
+                        ind = listing[q][0].index(self.desires[0])
+                        sellerPrice = listing[q][1][ind]
+                        riskAdjustedPrice = sellerPrice / sellerRep
+                        if riskAdjustedPrice < bestPrice:
+                            bestPrice = riskAdjustedPrice
+                            bestPriceID = listing[q][2]
+                            truePrice = sellerPrice
+                            DealFound = True
+
+        if DealFound:
             RiskAdjustedResult = orderSheet(self.unique_id, bestPriceID, truePrice, self.desires[0])
             return RiskAdjustedResult
         else:
             return None
 
     def makePurchase(self):
-        '''Acts on the recommendation of the self.evaluateItems function'''
-        if Test.epoch < 40:
+        if Test.epoch < 100:
             order = self.evaluateItems()
-        elif Test.epoch >= 40:
+        else:
             order = self.evaluateItemsBinary()
 
         if order != None:
-            #print(order.item)
             if self.wealth > order.price:
                 self.wealth -= order.price
-                order.ExpectedArrivalDate, order.SaleDate = Test.epoch + 5 + self.patience, Test.epoch
-                orders.append(order)
+                order.ExpectedArrivalDate = Test.epoch + 5 + self.patience
+                order.SaleDate = Test.epoch
+                newKey = list(Test.orderDict)[-1] + 1
+                Test.orderDict[newKey] = order
+                Test.orderTrack[self.unique_id].append(newKey)
+                Test.orderTrack[order.SellerID].append(newKey)
                 self.orderCount += 1
-                try:
-                    temp_index = self.desires.index(order.item)
-                except:
-                    print(Test.epoch)
-                    print(order)
-                    print(self.desires)
-                    exit()
+                temp_index = self.desires.index(order.item)
                 self.desires[temp_index] = None
 
             delList = []
@@ -175,29 +172,30 @@ class Buyer(Agent):
             '''for z in range(len(self.desires)):
                 if self.desires[z] == None:
                     self.desires.pop(z)'''
-
         else:
             pass
 
     def evaluateOrders(self):
         '''Checks all active orders to see if items have arrived or not'''
-        for i in range(len(orders)):
-            if orders[i].BuyerID == self.unique_id:
-                if Test.epoch == orders[i].ExpectedArrivalDate:
-                    if orders[i].ActualArrivalDate > orders[i].ExpectedArrivalDate:
-                        Test.feedback[orders[i].SellerID].append(False)
-                        self.negativeInteractions += 1
-                        if Test.epoch > 10:
-                            orders.pop(i)
-                            break
+        for i in range(len(Test.orderTrack[self.unique_id])):
+            #if orders[i].BuyerID == self.unique_id:
+            orderKey = Test.orderTrack[self.unique_id][i]
+            if Test.epoch == Test.orderDict[orderKey].ExpectedArrivalDate:
+                if Test.orderDict[orderKey].ActualArrivalDate > Test.orderDict[orderKey].ExpectedArrivalDate:
+                    Test.feedback[Test.orderDict[orderKey].SellerID].append(False)
+                    self.negativeInteractions += 1
+                    '''if Test.epoch > 10:
+                        orders.pop(i)
+                        break'''
 
-                    elif orders[i].ActualArrivalDate <= orders[i].ExpectedArrivalDate:
-                        Test.feedback[orders[i].SellerID].append(True)
-                        self.positiveInteractions += 1
-                        self.inventory.append(orders[i].item)
-                        if Test.epoch > 10:
-                            orders.pop(i)
-                            break
+                elif Test.orderDict[orderKey].ActualArrivalDate <= Test.orderDict[orderKey].ExpectedArrivalDate:
+                    Test.feedback[Test.orderDict[orderKey].SellerID].append(True)
+                    self.positiveInteractions += 1
+                    self.inventory.append(Test.orderDict[orderKey].item)
+                    '''if Test.epoch > 10:
+                        orders.pop(i)
+                        break'''
+
 
     def newItems(self):
         if self.desires == []:
@@ -248,25 +246,23 @@ class Seller(Agent):
             return (date + singleUseSpeed)
 
     def orderCheck(self):
-        for y in range(len(orders)):
-            '''if orders[y] == None:
-                continue'''
-            if orders[y].SellerID == self.unique_id and orders[y].ActualArrivalDate == None :
+        for y in range(len(Test.orderTrack[self.unique_id])):
+            orderKey = Test.orderTrack[self.unique_id][y]
+            if Test.orderDict[orderKey].ActualArrivalDate == None :
                 self.ordersReceived += 1
-                deliveryDate = self.generateDeliveryTime(orders[y].SaleDate)
-                orders[y].ActualArrivalDate = deliveryDate
-                if orders[y].ActualArrivalDate > orders[y].ExpectedArrivalDate:
+                deliveryDate = self.generateDeliveryTime(Test.orderDict[orderKey].SaleDate)
+                Test.orderDict[orderKey].ActualArrivalDate = deliveryDate
+                if Test.orderDict[orderKey].ActualArrivalDate > Test.orderDict[orderKey].ExpectedArrivalDate:
                     self.ordersIncorrect += 1
-                elif orders[y].ActualArrivalDate <= orders[y].ExpectedArrivalDate:
+                elif Test.orderDict[orderKey].ActualArrivalDate <= Test.orderDict[orderKey].ExpectedArrivalDate:
                     self.ordersCorrect += 1
 
                 try:
-                    x = self.inventory.index(orders[y].item)
+                    x = self.inventory.index(Test.orderDict[orderKey].item)
                     self.tracking[x][0] += 1
                     self.tracking[x][1] = 0
                 except:
                     pass
-    #Time
 
     def updatePrices(self):
         saleLimit = 50
@@ -300,6 +296,7 @@ class Seller(Agent):
         self.orderCheck()
         self.updatePrices()
 
+
 class Attacker():
     def __init__(self):
         self.profit = 0
@@ -317,14 +314,16 @@ class Attacker():
 
     def orderCheck(self, Honest):
         if Honest:
-            for y in range(len(orders)):
-                if orders[y].SellerID == 0 and orders[y].ActualArrivalDate == None :
-                    orders[y].ActualArrivalDate = self.dispatchTime + Test.epoch
+            for y in range(len(Test.orderTrack[0])):
+                orderKey = Test.orderTrack[0][y]
+                if Test.orderDict[orderKey].ActualArrivalDate == None :
+                    Test.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Test.epoch
         else:
-            for y in range(len(orders)):
-                if orders[y].SellerID == 0 and orders[y].ActualArrivalDate == None :
-                    orders[y].ActualArrivalDate = self.dispatchTime + Test.epoch + 500
-                    self.profit += orders[y].price
+            for y in range(len(Test.orderTrack[0])):
+                orderKey = Test.orderTrack[0][y]
+                if Test.orderDict[orderKey].ActualArrivalDate == None:
+                    Test.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Test.epoch + 500
+                    self.profit += Test.orderDict[orderKey].price
 
     def valueImbalance(self):
             new_listing = [["zomp"], [45], 0]
@@ -349,11 +348,15 @@ class Market(Model):
         self.schedule = RandomActivation(self)
         self.epoch = 0
         self.feedback = []
-        #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
-        self.dataReturn = [[], [], []]
-
+        self.orderDict = {0: None}
+        self.orderTrack = []
+        for x in range(self.numOfBuyers*2):
+            self.orderTrack.append([])
         for x in range(1050):
             self.feedback.append([])
+
+        #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
+        self.dataReturn = [[], [], []]
 
         for i in range(2, self.numOfBuyers * 2, 2):
             a = Buyer(i)
@@ -423,7 +426,7 @@ class Market(Model):
     def step(self):
         self.schedule.step()
         self.epoch += 1
-        self.storeData()
+        #self.storeData()
         self.displayProgress()
 
 def exportData(dataSet, fileName):
@@ -442,7 +445,9 @@ def main():
     fig, ax = plt.subplots()
     ax.plot(time_list, color="red")
     plt.show()
-    #exportData(Test.dataReturn, "DataOutputs/AttackDataTest4")
+
+
+    #exportData(Test.dataReturn, "DataOutputs/NewOrderingSystem")
 
 Attack = Attacker()
 Test = Market()
