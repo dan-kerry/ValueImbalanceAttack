@@ -53,6 +53,24 @@ def SalesVsRating(data):
     graph_data.plot.scatter(x="feedback", y="ordersRec")
     plt.show()
 
+def ValueImbalanceAnalysis(data):
+    wealth = []
+    rep = []
+    for x in range(len(data[2])):
+        rep.append(data[2][x][0])
+        wealth.append(data[2][x][1])
+    print((wealth))
+
+    fig, ax = plt.subplots()
+    ax.plot(rep, color="red")
+    ax.plot([[0.9]*len(rep)], color="black")
+    ax.hlines(y=0.7, xmin=0, xmax=len(rep), linewidth=1, color='black')
+    ax2 = ax.twinx()
+    ax2.plot(wealth, color="blue")
+    ax.set_xlabel("Epoch", fontsize=10)
+    ax.set_ylabel("Attacker Reputation", color="red", fontsize=10)
+    ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
+    plt.show()
 
 
 def main():
@@ -62,8 +80,9 @@ def main():
     #TrustScoreAnalysis(data)
     #DataVomit(data)
     #FeedbackVsSpeed(data)
-    RiskVsNegativeInteractions(data)
+    #RiskVsNegativeInteractions(data) #BuyerActivity3
     #SalesVsRating(data)
+    #ValueImbalanceAnalysis(data) #AttackDataTest
 
 
 main()

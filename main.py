@@ -6,6 +6,9 @@ import pickle
 import math
 import os
 
+import time
+import matplotlib.pyplot as plt
+
 
 items = ["red", "blue", "green", "orange", "purple", "yellow", "amber", "brown", "pink", "cyan", "lilac", "magenta",
          "mauve", "mint", "peach", "violet", "sapphire", "sepia", "tan", "turqoise", "vanilla", "zomp"]
@@ -32,6 +35,19 @@ def getList(quantity):
         if item not in desires:
             desires.append(item)
     return desires
+
+def sellerDishonestyBinary(list):
+    pos = 0
+    neg = 0
+    for x in range(len(list)):
+        if list[x] == True:
+            pos += 1
+        elif list[x] == False:
+            neg += 1
+        else:
+            pass
+    chance = (pos + 1) / (neg + pos + 2)
+    return chance
 
 class orderSheet():
     def __init__(self, BuyerID, SellerID, price, item, SaleDate = None, ExpectedArrivalDate = None, ActualArrivalDate = None):
@@ -60,19 +76,6 @@ class Buyer(Agent):
         self.riskAversion = random.triangular(0.4, 0.85, 0.95)
         self.positiveInteractions = 0
         self.negativeInteractions = 0
-
-    def sellerDishonestyBinary(self, list):
-        pos = 0
-        neg = 0
-        for x in range(len(list)):
-            if list[x] == True:
-                pos += 1
-            elif list[x] == False:
-                neg += 1
-            else:
-                pass
-        chance = (pos + 1) / (neg + pos + 2)
-        return chance
 
     def evaluateItems(self):
         '''Returns a single item in the market (or sometimes none), that the buyer should buy'''
@@ -121,7 +124,7 @@ class Buyer(Agent):
         if len(self.desires) > 0:
             for x in range(len(listing)):
                 if self.desires[0] in listing[x][0]:
-                    sellerRep = self.sellerDishonestyBinary(Test.feedback[listing[x][2]])
+                    sellerRep = sellerDishonestyBinary(Test.feedback[listing[x][2]])
                     if sellerRep < self.riskAversion:
                         #print(f"Buyer: {self.unique_id} has a maximum risk of {self.riskAversion}, so would not trade with seller {listing[x][2]}, with a score of {sellerRep}")
                         continue
@@ -180,7 +183,7 @@ class Buyer(Agent):
         '''Checks all active orders to see if items have arrived or not'''
         for i in range(len(orders)):
             if orders[i].BuyerID == self.unique_id:
-                if Test.epoch == orders[i].ActualArrivalDate:
+                if Test.epoch == orders[i].ExpectedArrivalDate:
                     if orders[i].ActualArrivalDate > orders[i].ExpectedArrivalDate:
                         Test.feedback[orders[i].SellerID].append(False)
                         self.negativeInteractions += 1
@@ -246,8 +249,8 @@ class Seller(Agent):
 
     def orderCheck(self):
         for y in range(len(orders)):
-            if orders[y] == None:
-                continue
+            '''if orders[y] == None:
+                continue'''
             if orders[y].SellerID == self.unique_id and orders[y].ActualArrivalDate == None :
                 self.ordersReceived += 1
                 deliveryDate = self.generateDeliveryTime(orders[y].SaleDate)
@@ -256,9 +259,14 @@ class Seller(Agent):
                     self.ordersIncorrect += 1
                 elif orders[y].ActualArrivalDate <= orders[y].ExpectedArrivalDate:
                     self.ordersCorrect += 1
-                x = self.inventory.index(orders[y].item)
-                self.tracking[x][0] += 1
-                self.tracking[x][1] = 0
+
+                try:
+                    x = self.inventory.index(orders[y].item)
+                    self.tracking[x][0] += 1
+                    self.tracking[x][1] = 0
+                except:
+                    pass
+    #Time
 
     def updatePrices(self):
         saleLimit = 50
@@ -293,26 +301,49 @@ class Seller(Agent):
         self.updatePrices()
 
 class Attacker():
-    def __init__(self, wealth = 0):
-        self.wealth = wealth
-        self.inventory = ["yellow"]
+    def __init__(self):
+        self.profit = 0
         self.createListing()
         self.dispatchTime = 4
+        self.crossoverPoint = 0.7
 
     def createListing(self):
-        fake_listing = [["mint", "peach"], [2, 2], 0]
+        fake_listing = [["mint", "peach"], [11, 7], 0]
         listing.append(fake_listing)
 
-    def orderCheck(self):
-        for y in range(len(orders)):
-            if orders[y].SellerID == 0 and orders[y].ActualArrivalDate == None :
-                orders[y].ActualArrivalDate = self.dispatchTime + Test.epoch
+    def HonestTrading(self):
+        new_listing = [["mint", "peach"], [11, 7], 0]
+        listing[0] = new_listing
+
+    def orderCheck(self, Honest):
+        if Honest:
+            for y in range(len(orders)):
+                if orders[y].SellerID == 0 and orders[y].ActualArrivalDate == None :
+                    orders[y].ActualArrivalDate = self.dispatchTime + Test.epoch
+        else:
+            for y in range(len(orders)):
+                if orders[y].SellerID == 0 and orders[y].ActualArrivalDate == None :
+                    orders[y].ActualArrivalDate = self.dispatchTime + Test.epoch + 500
+                    self.profit += orders[y].price
+
+    def valueImbalance(self):
+            new_listing = [["zomp"], [45], 0]
+            listing[0] = new_listing
 
     def act(self):
-        self.orderCheck()
+        if sellerDishonestyBinary(Test.feedback[0]) < self.crossoverPoint:
+            self.HonestTrading()
+            self.orderCheck(True)
+        elif sellerDishonestyBinary(Test.feedback[0]) >= self.crossoverPoint:
+            self.valueImbalance()
+            self.orderCheck(False)
+
+        '''print(listing[0])
+        print(sellerDishonestyBinary(Test.feedback[0]))
+        print(self.wealth)'''
 
 class Market(Model):
-    def __init__(self, B = 100, S = 20):
+    def __init__(self, B = 100, S = 50):
         self.numOfBuyers = B
         self.numOfSellers = S
         self.schedule = RandomActivation(self)
@@ -321,7 +352,7 @@ class Market(Model):
         #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
         self.dataReturn = [[], [], []]
 
-        for x in range(200):
+        for x in range(1050):
             self.feedback.append([])
 
         for i in range(2, self.numOfBuyers * 2, 2):
@@ -366,7 +397,7 @@ class Market(Model):
         pos2 = 0
         for j in range(1, self.numOfSellers * 2, 2):
             #print(f"Seller: {j}, Feedback: {Buyer.sellerDishonestyBinary(None, self.feedback[j])}")
-            individualFeeback = Buyer.sellerDishonestyBinary(None, self.feedback[j])
+            individualFeeback = sellerDishonestyBinary(self.feedback[j])
             SellerDF.loc[pos2].feedback = individualFeeback
             pos2 += 1
         pos2 = 0
@@ -376,8 +407,12 @@ class Market(Model):
                 SellerDF.loc[pos2].ordersRec = agent.ordersReceived
                 pos2 += 1
 
+        #Attacker Data Tracking
+        AttackerRep = sellerDishonestyBinary(Test.feedback[0])
+        AttackTurn = [AttackerRep, Attack.profit]
         self.dataReturn[0].append(BuyerDF)
         self.dataReturn[1].append(SellerDF)
+        self.dataReturn[2].append(AttackTurn)
 
     def displayProgress(self):
         clear()
@@ -395,12 +430,20 @@ def exportData(dataSet, fileName):
     pickle.dump(dataSet, open(fileName, "wb"))
 
 def main():
+    time_list = []
     steps = int(input("No. of Epochs?"))
     for x in range(steps):
         Attack.act()
+        start = time.time()
         Test.step()
-    #exportData(Test.dataReturn, "DataOutputs/NewSellerData")
+        end = time.time()
+        result = end - start
+        time_list.append(result)
+    fig, ax = plt.subplots()
+    ax.plot(time_list, color="red")
+    plt.show()
+    #exportData(Test.dataReturn, "DataOutputs/AttackDataTest4")
 
-Test = Market()
 Attack = Attacker()
+Test = Market()
 main()
