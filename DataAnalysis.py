@@ -2,6 +2,12 @@ import pickle
 import matplotlib.pyplot as plt
 import pandas
 
+
+class orderSheet:
+    def __str__(self):
+        return f"BuyerID: {self.BuyerID}, SellerID: {self.SellerID}, Price: {self.price}, Item: {self.item}, Due: {self.ExpectedArrivalDate}, Sale: {self.SaleDate}, Actual: {self.ActualArrivalDate}"
+
+
 def importData(filename):
     infile = open(filename, 'rb')
     new_dict = pickle.load(infile)
@@ -31,7 +37,8 @@ def TrustScoreAnalysis(data):
     plt.show()
 
 def DataVomit(data):
-    print(data)
+    for i in range(len(data)):
+        print(f"Sale: {i} - {data[i]}")
 
 def FeedbackVsSpeed(data):
     graph_data = data[1][-1]
@@ -60,7 +67,6 @@ def ValueImbalanceAnalysis(data):
         rep.append(data[2][x][0])
         wealth.append(data[2][x][1])
     print((wealth))
-
     fig, ax = plt.subplots()
     ax.plot(rep, color="red")
     ax.plot([[0.9]*len(rep)], color="black")
@@ -72,17 +78,36 @@ def ValueImbalanceAnalysis(data):
     ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
     plt.show()
 
+def newDataTest(data):
+    wealth = []
+    rep = []
+    for x in range(len(data)):
+        rep.append(data[x][0])
+        wealth.append(data[x][1])
+    fig, ax = plt.subplots()
+    ax.plot(rep, color="red")
+    ax.hlines(y=0.8, xmin=0, xmax=len(rep), linewidth=1, color='black')
+    ax2 = ax.twinx()
+    ax2.plot(wealth, color="blue")
+    ax.set_xlabel("Epoch", fontsize=10)
+    ax.set_ylabel("Attacker Reputation", color="red", fontsize=10)
+    ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
+    plt.show()
+
+    def DictionaryComprehension(data):
+        pass
 
 def main():
-    data = importData("DataOutputs/NewOrderingSystem")
+    data = importData("DataOutputs/Attack2")
     #BuyerWealthAnalysis(data)
     #NoOfPurchases(data)
     #TrustScoreAnalysis(data)
-    #DataVomit(data)
+    DataVomit(data)
     #FeedbackVsSpeed(data)
     #RiskVsNegativeInteractions(data) #BuyerActivity3
     #SalesVsRating(data)
     #ValueImbalanceAnalysis(data) #AttackDataTest
+    #newDataTest(data)
 
 
 main()

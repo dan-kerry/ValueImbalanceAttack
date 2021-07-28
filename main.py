@@ -124,7 +124,7 @@ class Buyer(Agent):
         if len(self.desires) > 0:
             for q in range(len(listing)):
                 if self.desires[0] in listing[q][0]:
-                    sellerRep = sellerDishonestyBinary(Test.feedback[listing[q][2]])
+                    sellerRep = sellerDishonestyBinary(Sim.feedback[listing[q][2]])
                     if sellerRep > self.riskAversion:
                         ind = listing[q][0].index(self.desires[0])
                         sellerPrice = listing[q][1][ind]
@@ -142,7 +142,7 @@ class Buyer(Agent):
             return None
 
     def makePurchase(self):
-        if Test.epoch < 100:
+        if Sim.epoch < 100:
             order = self.evaluateItems()
         else:
             order = self.evaluateItemsBinary()
@@ -150,12 +150,12 @@ class Buyer(Agent):
         if order != None:
             if self.wealth > order.price:
                 self.wealth -= order.price
-                order.ExpectedArrivalDate = Test.epoch + 5 + self.patience
-                order.SaleDate = Test.epoch
-                newKey = list(Test.orderDict)[-1] + 1
-                Test.orderDict[newKey] = order
-                Test.orderTrack[self.unique_id].append(newKey)
-                Test.orderTrack[order.SellerID].append(newKey)
+                order.ExpectedArrivalDate = Sim.epoch + 5 + self.patience
+                order.SaleDate = Sim.epoch
+                newKey = list(Sim.orderDict)[-1] + 1
+                Sim.orderDict[newKey] = order
+                Sim.orderTrack[self.unique_id].append(newKey)
+                Sim.orderTrack[order.SellerID].append(newKey)
                 self.orderCount += 1
                 temp_index = self.desires.index(order.item)
                 self.desires[temp_index] = None
@@ -177,24 +177,22 @@ class Buyer(Agent):
 
     def evaluateOrders(self):
         '''Checks all active orders to see if items have arrived or not'''
-        for i in range(len(Test.orderTrack[self.unique_id])):
-            #if orders[i].BuyerID == self.unique_id:
-            orderKey = Test.orderTrack[self.unique_id][i]
-            if Test.epoch == Test.orderDict[orderKey].ExpectedArrivalDate:
-                if Test.orderDict[orderKey].ActualArrivalDate > Test.orderDict[orderKey].ExpectedArrivalDate:
-                    Test.feedback[Test.orderDict[orderKey].SellerID].append(False)
+        for i in range(len(Sim.orderTrack[self.unique_id])-1, -1, -1):
+            orderKey = Sim.orderTrack[self.unique_id][i]
+            seller_ID = Sim.orderDict[orderKey].SellerID
+            if Sim.epoch == Sim.orderDict[orderKey].ExpectedArrivalDate:
+                if Sim.orderDict[orderKey].ActualArrivalDate > Sim.orderDict[orderKey].ExpectedArrivalDate:
+                    Sim.feedback[Sim.orderDict[orderKey].SellerID].append(False)
                     self.negativeInteractions += 1
-                    '''if Test.epoch > 10:
-                        orders.pop(i)
-                        break'''
+                    del(Sim.orderTrack[self.unique_id][i])
+                    Sim.orderTrack[seller_ID].remove(orderKey)
 
-                elif Test.orderDict[orderKey].ActualArrivalDate <= Test.orderDict[orderKey].ExpectedArrivalDate:
-                    Test.feedback[Test.orderDict[orderKey].SellerID].append(True)
+                elif Sim.orderDict[orderKey].ActualArrivalDate <= Sim.orderDict[orderKey].ExpectedArrivalDate:
+                    Sim.feedback[Sim.orderDict[orderKey].SellerID].append(True)
                     self.positiveInteractions += 1
-                    self.inventory.append(Test.orderDict[orderKey].item)
-                    '''if Test.epoch > 10:
-                        orders.pop(i)
-                        break'''
+                    self.inventory.append(Sim.orderDict[orderKey].item)
+                    del(Sim.orderTrack[self.unique_id][i])
+                    Sim.orderTrack[seller_ID].remove(orderKey)
 
 
     def newItems(self):
@@ -223,7 +221,7 @@ class Seller(Agent):
         self.prices = []
         self.tracking = []
         for i in range(len(self.inventory)):
-            self.tracking.append([0, 0])
+            self.tracking.append([0, 0, 0])
         self.accuracy = int(random.triangular(1, 35, 50))
         self.speed = int(random.triangular(3, 6, 8))
         self.ordersReceived = 0
@@ -246,19 +244,19 @@ class Seller(Agent):
             return (date + singleUseSpeed)
 
     def orderCheck(self):
-        for y in range(len(Test.orderTrack[self.unique_id])):
-            orderKey = Test.orderTrack[self.unique_id][y]
-            if Test.orderDict[orderKey].ActualArrivalDate == None :
+        for y in range(len(Sim.orderTrack[self.unique_id])):
+            orderKey = Sim.orderTrack[self.unique_id][y]
+            if Sim.orderDict[orderKey].ActualArrivalDate == None :
                 self.ordersReceived += 1
-                deliveryDate = self.generateDeliveryTime(Test.orderDict[orderKey].SaleDate)
-                Test.orderDict[orderKey].ActualArrivalDate = deliveryDate
-                if Test.orderDict[orderKey].ActualArrivalDate > Test.orderDict[orderKey].ExpectedArrivalDate:
+                deliveryDate = self.generateDeliveryTime(Sim.orderDict[orderKey].SaleDate)
+                Sim.orderDict[orderKey].ActualArrivalDate = deliveryDate
+                if Sim.orderDict[orderKey].ActualArrivalDate > Sim.orderDict[orderKey].ExpectedArrivalDate:
                     self.ordersIncorrect += 1
-                elif Test.orderDict[orderKey].ActualArrivalDate <= Test.orderDict[orderKey].ExpectedArrivalDate:
+                elif Sim.orderDict[orderKey].ActualArrivalDate <= Sim.orderDict[orderKey].ExpectedArrivalDate:
                     self.ordersCorrect += 1
 
                 try:
-                    x = self.inventory.index(Test.orderDict[orderKey].item)
+                    x = self.inventory.index(Sim.orderDict[orderKey].item)
                     self.tracking[x][0] += 1
                     self.tracking[x][1] = 0
                 except:
@@ -267,6 +265,7 @@ class Seller(Agent):
     def updatePrices(self):
         saleLimit = 50
         reductionLimit = 25
+        removeLimit = 3
         """If Item is sold 50+ times, it is removed from stock and replaced by a new item"""
         """If an item goes 25 iterations without a sale, its price is reduced by 1"""
         for i in range(len(self.tracking)):
@@ -279,15 +278,32 @@ class Seller(Agent):
                     else:
                         break
                 self.inventory[i] = newitem
-                self.tracking[i] = [0, 0]
+                self.tracking[i] = [0, 0, 0]
                 #Setting new prices for regenerated items
                 newPrice = int(random.triangular(prices[newitem]-2, prices[newitem], prices[newitem]+2))
                 self.prices[i] = newPrice
                 index_loc = math.floor((self.unique_id / 2))
                 listing[index_loc][0], listing[index_loc][1] = self.inventory, self.prices
+
             if self.tracking[i][1] > reductionLimit:
                 self.prices[i] -= 1
                 self.tracking[i][1] = 0
+                self.tracking[i][2] += 1
+
+            if self.tracking[i][2] > removeLimit:
+                while True:
+                    newitem = getItem()
+                    if newitem in self.inventory:
+                        continue
+                    else:
+                        break
+                self.inventory[i] = newitem
+                self.tracking[i] = [0, 0, 0]
+                #Setting new prices for regenerated items
+                newPrice = int(random.triangular(prices[newitem]-2, prices[newitem], prices[newitem]+2))
+                self.prices[i] = newPrice
+                index_loc = math.floor((self.unique_id / 2))
+                listing[index_loc][0], listing[index_loc][1] = self.inventory, self.prices
 
     def __str__(self):
         return f"Inventory: {self.inventory}, Prices: {self.prices}, Tracking: {self.tracking}"
@@ -300,49 +316,55 @@ class Seller(Agent):
 class Attacker():
     def __init__(self):
         self.profit = 0
-        self.createListing()
         self.dispatchTime = 4
-        self.crossoverPoint = 0.7
+        self.crossoverPoint = 0.8
 
     def createListing(self):
-        fake_listing = [["mint", "peach"], [11, 7], 0]
+        fake_listing = [["mint", "peach"], [3, 3], 0]
         listing.append(fake_listing)
 
-    def HonestTrading(self):
-        new_listing = [["mint", "peach"], [11, 7], 0]
-        listing[0] = new_listing
+    def orderCheck(self):
+        for y in range(len(Sim.orderTrack[0])):
+            orderKey = Sim.orderTrack[0][y]
+            if Sim.orderDict[orderKey].ActualArrivalDate == None:
+                if Sim.orderDict[orderKey].item != "zomp":
+                    Sim.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Sim.epoch
+                    #self.profit += Sim.orderDict[orderKey].price
 
-    def orderCheck(self, Honest):
-        if Honest:
-            for y in range(len(Test.orderTrack[0])):
-                orderKey = Test.orderTrack[0][y]
-                if Test.orderDict[orderKey].ActualArrivalDate == None :
-                    Test.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Test.epoch
-        else:
-            for y in range(len(Test.orderTrack[0])):
-                orderKey = Test.orderTrack[0][y]
-                if Test.orderDict[orderKey].ActualArrivalDate == None:
-                    Test.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Test.epoch + 500
-                    self.profit += Test.orderDict[orderKey].price
+                elif Sim.orderDict[orderKey].item == "zomp":
+                    Sim.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Sim.epoch + 500
+                    self.profit += Sim.orderDict[orderKey].price
 
     def valueImbalance(self):
-            new_listing = [["zomp"], [45], 0]
-            listing[0] = new_listing
+        lowPrice = 100
+        for x in range(len(listing)):
+            if "zomp" in listing[x][0]:
+                z_index = listing[x][0].index('zomp')
+                z_price = listing[x][1][z_index]
+                if z_price < lowPrice:
+                    lowPrice = z_price
+        newPrice = lowPrice - 1
+        new_listing = [["zomp"], [newPrice], 0]
+        listing[-1] = new_listing
+
+    def regularTrading(self):
+        new_listing = [["mint", "peach"], [4, 4], 0]
+        listing[-1] = new_listing
+
 
     def act(self):
-        if sellerDishonestyBinary(Test.feedback[0]) < self.crossoverPoint:
-            self.HonestTrading()
-            self.orderCheck(True)
-        elif sellerDishonestyBinary(Test.feedback[0]) >= self.crossoverPoint:
-            self.valueImbalance()
-            self.orderCheck(False)
+        if Sim.epoch == 200:
+            self.createListing()
+        elif Sim.epoch > 200:
+            if sellerDishonestyBinary(Sim.feedback[0]) < self.crossoverPoint:
+                self.regularTrading()
+            elif sellerDishonestyBinary(Sim.feedback[0]) >= self.crossoverPoint:
+                self.valueImbalance()
+        self.orderCheck()
 
-        '''print(listing[0])
-        print(sellerDishonestyBinary(Test.feedback[0]))
-        print(self.wealth)'''
 
 class Market(Model):
-    def __init__(self, B = 100, S = 50):
+    def __init__(self, B = 100, S = 25):
         self.numOfBuyers = B
         self.numOfSellers = S
         self.schedule = RandomActivation(self)
@@ -357,7 +379,7 @@ class Market(Model):
 
         #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
         self.dataReturn = [[], [], []]
-
+        self.newDataReturn = []
         for i in range(2, self.numOfBuyers * 2, 2):
             a = Buyer(i)
             self.schedule.add(a)
@@ -386,7 +408,9 @@ class Market(Model):
 
         #Buyer Data Tracking
         pos = 0
-        for agent in Test.schedule.agents:
+        pos2 = 0
+
+        for agent in Sim.schedule.agents:
             if agent.unique_id % 2 == 0:
                 BuyerDF.loc[pos].wealth = agent.wealth
                 BuyerDF.loc[pos].purchases = agent.orderCount
@@ -395,60 +419,59 @@ class Market(Model):
                 BuyerDF.loc[pos].negInteractions = agent.negativeInteractions
                 BuyerDF.loc[pos].patience = agent.patience
                 pos += 1
-
-        #Seller Data Tracking
-        pos2 = 0
-        for j in range(1, self.numOfSellers * 2, 2):
-            #print(f"Seller: {j}, Feedback: {Buyer.sellerDishonestyBinary(None, self.feedback[j])}")
-            individualFeeback = sellerDishonestyBinary(self.feedback[j])
-            SellerDF.loc[pos2].feedback = individualFeeback
-            pos2 += 1
-        pos2 = 0
-        for agent in Test.schedule.agents:
             if agent.unique_id % 2 != 0:
                 SellerDF.loc[pos2].speed = agent.speed
                 SellerDF.loc[pos2].ordersRec = agent.ordersReceived
                 pos2 += 1
 
+        #Seller Data Tracking
+        pos3 = 0
+        for j in range(1, self.numOfSellers * 2, 2):
+            individualFeeback = sellerDishonestyBinary(self.feedback[j])
+            SellerDF.loc[pos3].feedback = individualFeeback
+            pos3 += 1
+
         #Attacker Data Tracking
-        AttackerRep = sellerDishonestyBinary(Test.feedback[0])
+        AttackerRep = sellerDishonestyBinary(Sim.feedback[0])
         AttackTurn = [AttackerRep, Attack.profit]
         self.dataReturn[0].append(BuyerDF)
         self.dataReturn[1].append(SellerDF)
         self.dataReturn[2].append(AttackTurn)
 
     def displayProgress(self):
-        clear()
+        #clear()
         print(f"Epoch: {self.epoch} \n"
               f"Buyers: {self.numOfBuyers} \n"
               f"Sellers: {self.numOfSellers} \n")
+
+    def newDataStore(self):
+        AttackerRep = sellerDishonestyBinary(Sim.feedback[0])
+        AttackTurn = [AttackerRep, Attack.profit]
+        self.newDataReturn.append(AttackTurn)
+
+
 
     def step(self):
         self.schedule.step()
         self.epoch += 1
         #self.storeData()
+        self.newDataStore()
         self.displayProgress()
 
 def exportData(dataSet, fileName):
     pickle.dump(dataSet, open(fileName, "wb"))
 
+output = []
 def main():
-    time_list = []
     steps = int(input("No. of Epochs?"))
     for x in range(steps):
         Attack.act()
-        start = time.time()
-        Test.step()
-        end = time.time()
-        result = end - start
-        time_list.append(result)
-    fig, ax = plt.subplots()
-    ax.plot(time_list, color="red")
-    plt.show()
+        Sim.step()
+    for i in range(len(Sim.orderDict)):
+        output.append(Sim.orderDict[i])
+    exportData(Sim.newDataReturn, "DataOutputs/Attack2")
 
 
-    #exportData(Test.dataReturn, "DataOutputs/NewOrderingSystem")
-
+Sim = Market()
 Attack = Attacker()
-Test = Market()
 main()
