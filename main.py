@@ -317,7 +317,12 @@ class Attacker():
     def __init__(self):
         self.profit = 0
         self.dispatchTime = 4
-        self.crossoverPoint = 0.8
+        self.crossoverPoint = 0.7
+
+    def reset(self):
+        self.profit = 0
+        self.dispatchTime = 4
+        self.crossoverPoint = 0.7
 
     def createListing(self):
         fake_listing = [["mint", "peach"], [3, 3], 0]
@@ -346,6 +351,15 @@ class Attacker():
         newPrice = lowPrice - 1
         new_listing = [["zomp"], [newPrice], 0]
         listing[-1] = new_listing
+        '''for x in range(len(listing)):
+            if "yellow" in listing[x][0]:
+                z_index = listing[x][0].index('yellow')
+                z_price = listing[x][1][z_index]
+                if z_price < lowPrice:
+                    lowPrice = z_price
+        newPrice = lowPrice - 1
+        new_listing = [["yellow"], [newPrice], 0]
+        listing[-1] = new_listing'''
 
     def regularTrading(self):
         new_listing = [["mint", "peach"], [4, 4], 0]
@@ -353,9 +367,9 @@ class Attacker():
 
 
     def act(self):
-        if Sim.epoch == 200:
+        if Sim.epoch == 100:
             self.createListing()
-        elif Sim.epoch > 200:
+        elif Sim.epoch > 100:
             if sellerDishonestyBinary(Sim.feedback[0]) < self.crossoverPoint:
                 self.regularTrading()
             elif sellerDishonestyBinary(Sim.feedback[0]) >= self.crossoverPoint:
@@ -376,8 +390,30 @@ class Market(Model):
             self.orderTrack.append([])
         for x in range(1050):
             self.feedback.append([])
-
         #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
+        self.dataReturn = [[], [], []]
+        self.newDataReturn = []
+        for i in range(2, self.numOfBuyers * 2, 2):
+            a = Buyer(i)
+            self.schedule.add(a)
+
+        for i in range(1, self.numOfSellers * 2, 2):
+            b = Seller(i)
+            self.schedule.add(b)
+
+    def reset(self):
+        self.numOfBuyers = self.numOfBuyers
+        self.numOfSellers = self.numOfSellers
+        self.schedule = RandomActivation(self)
+        self.epoch = 0
+        self.feedback = []
+        self.orderDict = {0: None}
+        self.orderTrack = []
+        for x in range(self.numOfBuyers * 2):
+            self.orderTrack.append([])
+        for x in range(1050):
+            self.feedback.append([])
+        # dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
         self.dataReturn = [[], [], []]
         self.newDataReturn = []
         for i in range(2, self.numOfBuyers * 2, 2):
@@ -450,28 +486,26 @@ class Market(Model):
         self.newDataReturn.append(AttackTurn)
 
 
-
     def step(self):
         self.schedule.step()
         self.epoch += 1
         #self.storeData()
         self.newDataStore()
-        self.displayProgress()
+        #self.displayProgress()
 
 def exportData(dataSet, fileName):
     pickle.dump(dataSet, open(fileName, "wb"))
 
 output = []
-def main():
-    steps = int(input("No. of Epochs?"))
+
+def run():
+    steps = 500
     for x in range(steps):
         Attack.act()
         Sim.step()
-    for i in range(len(Sim.orderDict)):
-        output.append(Sim.orderDict[i])
-    exportData(Sim.newDataReturn, "DataOutputs/Attack2")
+    return Sim.newDataReturn
 
 
 Sim = Market()
 Attack = Attacker()
-main()
+

@@ -94,20 +94,45 @@ def newDataTest(data):
     ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
     plt.show()
 
-    def DictionaryComprehension(data):
-        pass
+def DictionaryComprehension(data):
+    pass
+
+def batch_analysis(data):
+    output_list = []
+    output_list2 = []
+    for y in range(len(data[0])):
+        totalRep = 0
+        totalWealth = 0
+        for x in range(len(data)):
+            totalRep += data[x][y][0]
+            totalWealth += data[x][y][1]
+        totalRep /= len(data)
+        totalWealth /= len(data)
+
+        output_list.append(totalRep)
+        output_list2.append(totalWealth)
+    fig, ax = plt.subplots()
+    ax.plot(output_list, color="red")
+    ax2 = ax.twinx()
+    ax2.plot(output_list2, color="blue")
+    plt.show()
+
+def dataTest(data):
+    print(len(data[3]))
 
 def main():
-    data = importData("DataOutputs/Attack2")
+    data = importData("DataOutputs/ValueImbalanceHigh7")
     #BuyerWealthAnalysis(data)
     #NoOfPurchases(data)
     #TrustScoreAnalysis(data)
-    DataVomit(data)
+    #DataVomit(data)
     #FeedbackVsSpeed(data)
     #RiskVsNegativeInteractions(data) #BuyerActivity3
     #SalesVsRating(data)
     #ValueImbalanceAnalysis(data) #AttackDataTest
     #newDataTest(data)
+    batch_analysis(data)
+    #dataTest(data)
 
 
 main()
