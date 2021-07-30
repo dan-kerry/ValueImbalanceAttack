@@ -115,13 +115,38 @@ def batch_analysis(data):
     ax.plot(output_list, color="red")
     ax2 = ax.twinx()
     ax2.plot(output_list2, color="blue")
+    ax.set_ylabel("Attacker Reputation", color="red", fontsize=10)
+    ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
+    ax.set_xlabel("Epoch", fontsize=10)
     plt.show()
 
 def dataTest(data):
     print(len(data[3]))
 
+def averageFinalValue(data):
+    total = 0
+    for x in range(len(data)):
+        total += data[x][-1][1]
+    return total / len(data)
+
+def optimal():
+    o5 = averageFinalValue(importData("Results/Simple_05_HighValue"))
+    o7 = averageFinalValue(importData("Results/Simple_07_HighValue"))
+    o75 = averageFinalValue(importData("Results/Simple_075_HighValue"))
+    o8 = averageFinalValue(importData("Results/Simple_08_HighValue"))
+    o825 = averageFinalValue(importData("Results/Simple_0825_HighValue"))
+    o85 = averageFinalValue(importData("Results/Simple_085_HighValue"))
+    o9 = averageFinalValue(importData("Results/Simple_09_HighValue"))
+    o95 = averageFinalValue(importData("Results/Simple_095_HighValue"))
+    o99 = averageFinalValue(importData("Results/Simple_099_HighValue"))
+
+    y_axis = [o5, o7, o75, o8, o825, o85, o9, o95, o99]
+    x_axis = [0.5, 0.7, 0.75, 0.8, 0.825, 0.85, 0.9, 0.95, 0.99]
+    plt.plot(x_axis, y_axis)
+    plt.show()
+
 def main():
-    data = importData("DataOutputs/ValueImbalanceHigh7")
+    data = importData("Results/Simple_0825_HighValue")
     #BuyerWealthAnalysis(data)
     #NoOfPurchases(data)
     #TrustScoreAnalysis(data)
@@ -131,8 +156,9 @@ def main():
     #SalesVsRating(data)
     #ValueImbalanceAnalysis(data) #AttackDataTest
     #newDataTest(data)
-    batch_analysis(data)
+    #batch_analysis(data)
     #dataTest(data)
+    optimal()
 
 
 main()

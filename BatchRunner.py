@@ -8,4 +8,4 @@ for turn in range(100):
     overall.append(main.run())
     main.listing = []
 
-main.exportData(overall, "DataOutputs/ValueImbalanceHigh7")
+main.exportData(overall, "Results/Simple_0825_HighValue")

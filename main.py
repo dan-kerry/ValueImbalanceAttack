@@ -40,14 +40,25 @@ def sellerDishonestyBinary(list):
     pos = 0
     neg = 0
     for x in range(len(list)):
-        if list[x] == True:
+        if list[x][0] == True:
             pos += 1
-        elif list[x] == False:
+        elif list[x][0] == False:
             neg += 1
         else:
             pass
     chance = (pos + 1) / (neg + pos + 2)
     return chance
+
+def sellerDishonestyValueAdjusted(list):
+    pos = 0
+    neg = 0
+    for x in range(len(list)):
+        if list[x][0] == True:
+            pos += list[x][1]
+        elif list[x][0] == False:
+            neg += list[x][1]
+    return (pos + 1) / (neg + pos + 2)
+
 
 class orderSheet():
     def __init__(self, BuyerID, SellerID, price, item, SaleDate = None, ExpectedArrivalDate = None, ActualArrivalDate = None):
@@ -125,6 +136,7 @@ class Buyer(Agent):
             for q in range(len(listing)):
                 if self.desires[0] in listing[q][0]:
                     sellerRep = sellerDishonestyBinary(Sim.feedback[listing[q][2]])
+                    #sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[q][2]])
                     if sellerRep > self.riskAversion:
                         ind = listing[q][0].index(self.desires[0])
                         sellerPrice = listing[q][1][ind]
@@ -148,6 +160,8 @@ class Buyer(Agent):
             order = self.evaluateItemsBinary()
 
         if order != None:
+            if order.price < 1:
+                pass
             if self.wealth > order.price:
                 self.wealth -= order.price
                 order.ExpectedArrivalDate = Sim.epoch + 5 + self.patience
@@ -182,13 +196,13 @@ class Buyer(Agent):
             seller_ID = Sim.orderDict[orderKey].SellerID
             if Sim.epoch == Sim.orderDict[orderKey].ExpectedArrivalDate:
                 if Sim.orderDict[orderKey].ActualArrivalDate > Sim.orderDict[orderKey].ExpectedArrivalDate:
-                    Sim.feedback[Sim.orderDict[orderKey].SellerID].append(False)
+                    Sim.feedback[Sim.orderDict[orderKey].SellerID].append([False, Sim.orderDict[orderKey].price, Sim.orderDict[orderKey].SaleDate])
                     self.negativeInteractions += 1
                     del(Sim.orderTrack[self.unique_id][i])
                     Sim.orderTrack[seller_ID].remove(orderKey)
 
                 elif Sim.orderDict[orderKey].ActualArrivalDate <= Sim.orderDict[orderKey].ExpectedArrivalDate:
-                    Sim.feedback[Sim.orderDict[orderKey].SellerID].append(True)
+                    Sim.feedback[Sim.orderDict[orderKey].SellerID].append([True, Sim.orderDict[orderKey].price, Sim.orderDict[orderKey].SaleDate])
                     self.positiveInteractions += 1
                     self.inventory.append(Sim.orderDict[orderKey].item)
                     del(Sim.orderTrack[self.unique_id][i])
@@ -317,12 +331,12 @@ class Attacker():
     def __init__(self):
         self.profit = 0
         self.dispatchTime = 4
-        self.crossoverPoint = 0.7
+        self.crossoverPoint = 0.825
 
     def reset(self):
         self.profit = 0
         self.dispatchTime = 4
-        self.crossoverPoint = 0.7
+        self.crossoverPoint = 0.825
 
     def createListing(self):
         fake_listing = [["mint", "peach"], [3, 3], 0]
@@ -388,7 +402,7 @@ class Market(Model):
         self.orderTrack = []
         for x in range(self.numOfBuyers*2):
             self.orderTrack.append([])
-        for x in range(1050):
+        for x in range(self.numOfSellers * 2):
             self.feedback.append([])
         #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
         self.dataReturn = [[], [], []]
@@ -401,6 +415,7 @@ class Market(Model):
             b = Seller(i)
             self.schedule.add(b)
 
+
     def reset(self):
         self.numOfBuyers = self.numOfBuyers
         self.numOfSellers = self.numOfSellers
@@ -411,7 +426,7 @@ class Market(Model):
         self.orderTrack = []
         for x in range(self.numOfBuyers * 2):
             self.orderTrack.append([])
-        for x in range(1050):
+        for x in range(self.numOfSellers * 2):
             self.feedback.append([])
         # dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
         self.dataReturn = [[], [], []]
@@ -499,12 +514,11 @@ def exportData(dataSet, fileName):
 output = []
 
 def run():
-    steps = 500
+    steps = 750
     for x in range(steps):
         Attack.act()
         Sim.step()
     return Sim.newDataReturn
-
 
 Sim = Market()
 Attack = Attacker()
