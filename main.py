@@ -57,7 +57,10 @@ def sellerDishonestyValueAdjusted(list):
             pos += list[x][1]
         elif list[x][0] == False:
             neg += list[x][1]
-    return (pos + 1) / (neg + pos + 2)
+    try:
+        return (pos + 1) / (neg + pos + 2)
+    except:
+        return 0.4
 
 
 class orderSheet():
@@ -135,8 +138,8 @@ class Buyer(Agent):
         if len(self.desires) > 0:
             for q in range(len(listing)):
                 if self.desires[0] in listing[q][0]:
-                    sellerRep = sellerDishonestyBinary(Sim.feedback[listing[q][2]])
-                    #sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[q][2]])
+                    #sellerRep = sellerDishonestyBinary(Sim.feedback[listing[q][2]])
+                    sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[q][2]])
                     if sellerRep > self.riskAversion:
                         ind = listing[q][0].index(self.desires[0])
                         sellerPrice = listing[q][1][ind]
@@ -331,12 +334,13 @@ class Attacker():
     def __init__(self):
         self.profit = 0
         self.dispatchTime = 4
-        self.crossoverPoint = 0.825
+        self.crossoverPoint = 0.85
+        self.AttackItem = "zomp"
 
     def reset(self):
         self.profit = 0
         self.dispatchTime = 4
-        self.crossoverPoint = 0.825
+        self.crossoverPoint = 0.85
 
     def createListing(self):
         fake_listing = [["mint", "peach"], [3, 3], 0]
@@ -346,34 +350,26 @@ class Attacker():
         for y in range(len(Sim.orderTrack[0])):
             orderKey = Sim.orderTrack[0][y]
             if Sim.orderDict[orderKey].ActualArrivalDate == None:
-                if Sim.orderDict[orderKey].item != "zomp":
+                if Sim.orderDict[orderKey].item != self.AttackItem:
                     Sim.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Sim.epoch
                     #self.profit += Sim.orderDict[orderKey].price
 
-                elif Sim.orderDict[orderKey].item == "zomp":
+                elif Sim.orderDict[orderKey].item == self.AttackItem:
                     Sim.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Sim.epoch + 500
                     self.profit += Sim.orderDict[orderKey].price
 
     def valueImbalance(self):
         lowPrice = 100
         for x in range(len(listing)):
-            if "zomp" in listing[x][0]:
-                z_index = listing[x][0].index('zomp')
+            if self.AttackItem in listing[x][0]:
+                z_index = listing[x][0].index(self.AttackItem)
                 z_price = listing[x][1][z_index]
                 if z_price < lowPrice:
                     lowPrice = z_price
         newPrice = lowPrice - 1
-        new_listing = [["zomp"], [newPrice], 0]
+        new_listing = [[self.AttackItem], [newPrice], 0]
         listing[-1] = new_listing
-        '''for x in range(len(listing)):
-            if "yellow" in listing[x][0]:
-                z_index = listing[x][0].index('yellow')
-                z_price = listing[x][1][z_index]
-                if z_price < lowPrice:
-                    lowPrice = z_price
-        newPrice = lowPrice - 1
-        new_listing = [["yellow"], [newPrice], 0]
-        listing[-1] = new_listing'''
+
 
     def regularTrading(self):
         new_listing = [["mint", "peach"], [4, 4], 0]
@@ -381,6 +377,7 @@ class Attacker():
 
 
     def act(self):
+
         if Sim.epoch == 100:
             self.createListing()
         elif Sim.epoch > 100:
@@ -392,7 +389,7 @@ class Attacker():
 
 
 class Market(Model):
-    def __init__(self, B = 100, S = 25):
+    def __init__(self, B = 250, S = 50):
         self.numOfBuyers = B
         self.numOfSellers = S
         self.schedule = RandomActivation(self)
@@ -511,7 +508,8 @@ class Market(Model):
 def exportData(dataSet, fileName):
     pickle.dump(dataSet, open(fileName, "wb"))
 
-output = []
+Sim = Market()
+Attack = Attacker()
 
 def run():
     steps = 750
@@ -520,6 +518,4 @@ def run():
         Sim.step()
     return Sim.newDataReturn
 
-Sim = Market()
-Attack = Attacker()
 
