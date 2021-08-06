@@ -5,25 +5,20 @@ dataOutput = []
 
 for i in range(len(testValues)):
     overall = []
-
     for turn in range(250):
         main.Sim.reset()
         main.Attack.reset()
         print(f"{i} {turn}")
         overall.append(main.run(testValues[i]))
         main.listing = []
-    total = 0
-    for x in range(len(overall)):
-        total += overall[x][-1][1]
-    turnResult = total / len(overall)
-    dataOutput.append([testValues[i], turnResult])
+    dataOutput.append(overall)
 main.exportData(dataOutput, "AdvancedTRS_LowerRA")
 
 
-'''for turn in range(100):
+'''for turn in range(5):
     main.Sim.reset()
     main.Attack.reset()
     print(f"{turn}")
     dataOutput.append(main.run())
     main.listing = []
-main.exportData(dataOutput, "ThresholdAnalysis/VariableThresholdAnalysis/Variable_Value_098_200_085")'''
+main.exportData(dataOutput, "Aug6Batch")'''

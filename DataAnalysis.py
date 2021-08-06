@@ -86,7 +86,7 @@ def ValueImbalanceAnalysis(data):
     ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
     plt.show()
 
-def newDataTest(data):
+def SingleRunAnalysis(data):
     wealth = []
     rep = []
     for x in range(len(data)):
@@ -94,7 +94,6 @@ def newDataTest(data):
         wealth.append(data[x][1])
     fig, ax = plt.subplots()
     ax.plot(rep, color="red")
-    ax.hlines(y=0.8, xmin=0, xmax=len(rep), linewidth=1, color='black')
     ax2 = ax.twinx()
     ax2.plot(wealth, color="blue")
     ax.set_xlabel("Epoch", fontsize=10)
@@ -116,7 +115,6 @@ def batch_analysis(data):
             totalWealth += data[x][y][1]
         totalRep /= len(data)
         totalWealth /= len(data)
-
         output_list.append(totalRep)
         output_list2.append(totalWealth)
     fig, ax = plt.subplots()
@@ -126,6 +124,24 @@ def batch_analysis(data):
     ax.set_ylabel("Attacker Reputation", color="red", fontsize=10)
     ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
     ax.set_xlabel("Epoch", fontsize=10)
+    plt.show()
+
+def ErrorTest2(data):
+    output_list = []
+    for y in range(len(data[0])):
+        totalWealth = 0
+        for x in range(len(data)):
+            totalWealth += data[x][y][1]
+        totalWealth /= len(data)
+        output_list.append(totalWealth)
+
+
+    for j in range(len(data)):
+        newLine = []
+        for k in range(len(data[j])):
+            newLine.append(data[j][k][1])
+        plt.plot(newLine, alpha=0.1, color='black')
+    plt.plot(output_list, color='red')
     plt.show()
 
 def dataTest(data):
@@ -367,7 +383,7 @@ def VariableValueAnalysis():
     plt.show()
 
 def main():
-    data = importData("ThresholdAnalysis/VariableThresholdAnalysis/Variable_Value_300_0_85")
+    data = importData("ValueDifferentiation/LowValueAttack_ValueBased")
     #BuyerWealthAnalysis(data)
     #NoOfPurchases(data)
     #TrustScoreAnalysis(data)
@@ -376,14 +392,16 @@ def main():
     #RiskVsNegativeInteractions(data) #BuyerActivity3
     #SalesVsRating(data)
     #ValueImbalanceAnalysis(data) #AttackDataTest
-    #newDataTest(data)
+    #SingleRunAnalysis(data)
     #batch_analysis(data)
     #dataTest(data)
     #optimal()
     #StaticThreshold()
     #ValueDiffSimple()
     #VariableValueAnalysis()
-    errorTest()
+    #errorTest()
+    ErrorTest2(data)
+
 
 
 main()

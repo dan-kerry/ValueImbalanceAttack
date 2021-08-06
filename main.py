@@ -138,8 +138,8 @@ class Buyer(Agent):
         if len(self.desires) > 0:
             for q in range(len(listing)):
                 if self.desires[0] in listing[q][0]:
-                    #sellerRep = sellerDishonestyBinary(Sim.feedback[listing[q][2]])
-                    sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[q][2]])
+                    sellerRep = sellerDishonestyBinary(Sim.feedback[listing[q][2]])
+                    #sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[q][2]])
                     if sellerRep > self.riskAversion:
                         ind = listing[q][0].index(self.desires[0])
                         sellerPrice = listing[q][1][ind]
@@ -203,6 +203,7 @@ class Buyer(Agent):
                     self.negativeInteractions += 1
                     del(Sim.orderTrack[self.unique_id][i])
                     Sim.orderTrack[seller_ID].remove(orderKey)
+                    del(Sim.orderDict[orderKey])
 
                 elif Sim.orderDict[orderKey].ActualArrivalDate <= Sim.orderDict[orderKey].ExpectedArrivalDate:
                     Sim.feedback[Sim.orderDict[orderKey].SellerID].append([True, Sim.orderDict[orderKey].price, Sim.orderDict[orderKey].SaleDate])
@@ -210,6 +211,7 @@ class Buyer(Agent):
                     self.inventory.append(Sim.orderDict[orderKey].item)
                     del(Sim.orderTrack[self.unique_id][i])
                     Sim.orderTrack[seller_ID].remove(orderKey)
+                    del (Sim.orderDict[orderKey])
 
 
     def newItems(self):
@@ -335,7 +337,7 @@ class Attacker():
         self.profit = 0
         self.dispatchTime = 4
         self.crossoverPoint = 0.85
-        self.AttackItem = "zomp"
+        self.AttackItem = "mauve"
 
     def reset(self):
         self.profit = 0
@@ -375,9 +377,7 @@ class Attacker():
         new_listing = [["mint", "peach"], [4, 4], 0]
         listing[-1] = new_listing
 
-
     def act(self):
-
         if Sim.epoch == 100:
             self.createListing()
         elif Sim.epoch > 100:
@@ -511,11 +511,14 @@ def exportData(dataSet, fileName):
 Sim = Market()
 Attack = Attacker()
 
-def run():
+def run(var):
     steps = 750
     for x in range(steps):
+        Attack.crossoverPoint = var
         Attack.act()
         Sim.step()
+
     return Sim.newDataReturn
+    #exportData(Sim.newDataReturn, "6AugTest")
 
 
