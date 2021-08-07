@@ -383,7 +383,7 @@ def VariableValueAnalysis():
     plt.show()
 
 def main():
-    data = importData("ValueDifferentiation/LowValueAttack_ValueBased")
+    data = importData("ThresholdAnalysis/VariableThresholdAnalysis/Variable_Value_SemiRandom")
     #BuyerWealthAnalysis(data)
     #NoOfPurchases(data)
     #TrustScoreAnalysis(data)

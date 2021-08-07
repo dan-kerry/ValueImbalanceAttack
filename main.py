@@ -337,7 +337,7 @@ class Attacker():
         self.profit = 0
         self.dispatchTime = 4
         self.crossoverPoint = 0.85
-        self.AttackItem = "mauve"
+        self.AttackItem = "zomp"
 
     def reset(self):
         self.profit = 0
@@ -389,7 +389,7 @@ class Attacker():
 
 
 class Market(Model):
-    def __init__(self, B = 250, S = 50):
+    def __init__(self, B = 200, S = 50):
         self.numOfBuyers = B
         self.numOfSellers = S
         self.schedule = RandomActivation(self)
@@ -503,7 +503,7 @@ class Market(Model):
         self.epoch += 1
         #self.storeData()
         self.newDataStore()
-        #self.displayProgress()
+        self.displayProgress()
 
 def exportData(dataSet, fileName):
     pickle.dump(dataSet, open(fileName, "wb"))
@@ -512,13 +512,15 @@ Sim = Market()
 Attack = Attacker()
 
 def run(var):
-    steps = 750
+    steps = 500
     for x in range(steps):
         Attack.crossoverPoint = var
         Attack.act()
         Sim.step()
+    #return Sim.newDataReturn
+    exportData(Sim.newDataReturn, "7AugTest")
 
-    return Sim.newDataReturn
-    #exportData(Sim.newDataReturn, "6AugTest")
+run(0.85)
+
 
 

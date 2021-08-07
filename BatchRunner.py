@@ -5,14 +5,15 @@ dataOutput = []
 
 for i in range(len(testValues)):
     overall = []
-    for turn in range(250):
+    for turn in range(100):
         main.Sim.reset()
         main.Attack.reset()
         print(f"{i} {turn}")
-        overall.append(main.run(testValues[i]))
+        result = testValues[i]
+        overall.append(main.run(result))
         main.listing = []
     dataOutput.append(overall)
-main.exportData(dataOutput, "AdvancedTRS_LowerRA")
+main.exportData(dataOutput, "NewConstantThresholdAnalysis/")
 
 
 '''for turn in range(5):
