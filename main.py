@@ -37,17 +37,16 @@ def getList(quantity):
     return desires
 
 def sellerDishonestyBinary(list):
-    pos = 0
-    neg = 0
-    for x in range(len(list)):
+    '''for x in range(len(list)):
         if list[x][0] == True:
             pos += 1
         elif list[x][0] == False:
             neg += 1
         else:
-            pass
-    chance = (pos + 1) / (neg + pos + 2)
-    return chance
+            pass'''
+    pos = list.count(True)
+    neg = len(list) - pos
+    return ((pos + 1) / (neg + pos + 2))
 
 def sellerDishonestyValueAdjusted(list):
     pos = 0
@@ -104,23 +103,24 @@ class Buyer(Agent):
                 self.MSRPs.append(prices[self.desires[z]])
 
             for x in range(len(self.desires)):
-                for y in range(len(listing)):
+                searchDirectory = Sim.listingDirectory[self.desires[x]]
+                for y in range(len(searchDirectory)):
                     #Selects item with greatest percentage discount
-                    if self.desires[x] in listing[y][0]:
-                        ind = listing[y][0].index(self.desires[x])
-                        sellerPrice = listing[y][1][ind]
+                    if self.desires[x] in listing[searchDirectory[y]][0]:
+                        ind = listing[searchDirectory[y]][0].index(self.desires[x])
+                        sellerPrice = listing[searchDirectory[y]][1][ind]
                         discount = sellerPrice / self.MSRPs[x]
                         if discount < MaxPercent:
                             MaxPercent = discount
                             MaxPercentPrice = sellerPrice
-                            MaxPercentInd = listing[y][2]
+                            MaxPercentInd = listing[searchDirectory[y]][2]
                             MaxPercentItem = self.desires[x]
                             DealFound = True
                         elif discount == MaxPercent:
                             if sellerPrice > MaxPercentPrice:
                                 MaxPercent = discount
                                 MaxPercentPrice = sellerPrice
-                                MaxPercentInd = listing[y][2]
+                                MaxPercentInd = listing[searchDirectory[y]][2]
                                 MaxPercentItem = self.desires[x]
 
             MaxPercentResult = orderSheet(self.unique_id, MaxPercentInd, MaxPercentPrice, MaxPercentItem)
@@ -136,17 +136,18 @@ class Buyer(Agent):
         DealFound = False
 
         if len(self.desires) > 0:
-            for q in range(len(listing)):
-                if self.desires[0] in listing[q][0]:
-                    sellerRep = sellerDishonestyBinary(Sim.feedback[listing[q][2]])
-                    #sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[q][2]])
+            searchDirectory = Sim.listingDirectory[self.desires[0]]
+            for q in range(len(searchDirectory)):
+                if self.desires[0] in listing[searchDirectory[q]][0]:
+                    sellerRep = sellerDishonestyBinary(Sim.feedback[listing[searchDirectory[q]][2]])
+                    #sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[searchDirectory[q]][2]])
                     if sellerRep > self.riskAversion:
-                        ind = listing[q][0].index(self.desires[0])
-                        sellerPrice = listing[q][1][ind]
+                        ind = listing[searchDirectory[q]][0].index(self.desires[0])
+                        sellerPrice = listing[searchDirectory[q]][1][ind]
                         riskAdjustedPrice = sellerPrice / sellerRep
                         if riskAdjustedPrice < bestPrice:
                             bestPrice = riskAdjustedPrice
-                            bestPriceID = listing[q][2]
+                            bestPriceID = listing[searchDirectory[q]][2]
                             truePrice = sellerPrice
                             DealFound = True
 
@@ -193,7 +194,7 @@ class Buyer(Agent):
             pass
 
     def evaluateOrders(self):
-        '''Checks all active orders to see if items have arrived or not'''
+        """Checks all active orders to see if items have arrived or not"""
         for i in range(len(Sim.orderTrack[self.unique_id])-1, -1, -1):
             orderKey = Sim.orderTrack[self.unique_id][i]
             seller_ID = Sim.orderDict[orderKey].SellerID
@@ -231,7 +232,8 @@ class Buyer(Agent):
         self.newItems()
         self.makeMoney()
 
-        #print(f"BuyerID: {self.unique_id}, Desires: {self.desires}, Inventory: {self.inventory}, Wealth: {self.wealth}")
+        # print(f"BuyerID: {self.unique_id}, Desires: {self.desires}, Inventory: {self.inventory},
+        # Wealth: {self.wealth}")
 
 class Seller(Agent):
     def __init__(self, unique_id):
@@ -265,7 +267,7 @@ class Seller(Agent):
     def orderCheck(self):
         for y in range(len(Sim.orderTrack[self.unique_id])):
             orderKey = Sim.orderTrack[self.unique_id][y]
-            if Sim.orderDict[orderKey].ActualArrivalDate == None :
+            if Sim.orderDict[orderKey].ActualArrivalDate is None:
                 self.ordersReceived += 1
                 deliveryDate = self.generateDeliveryTime(Sim.orderDict[orderKey].SaleDate)
                 Sim.orderDict[orderKey].ActualArrivalDate = deliveryDate
@@ -397,6 +399,11 @@ class Market(Model):
         self.feedback = []
         self.orderDict = {0: None}
         self.orderTrack = []
+
+        self.listingDirectory = {"red": [], "blue": [], "green": [], "orange": [], "purple": [], "yellow": [], "amber": [], "brown": [],
+          "pink": [], "cyan": [], "lilac": [], "magenta": [], "mauve": [], "mint": [], "peach": [], "violet": [],
+          "sapphire": [], "sepia": [], "tan": [], "turqoise": [], "vanilla": [], "zomp": []}
+
         for x in range(self.numOfBuyers*2):
             self.orderTrack.append([])
         for x in range(self.numOfSellers * 2):
@@ -435,7 +442,6 @@ class Market(Model):
         for i in range(1, self.numOfSellers * 2, 2):
             b = Seller(i)
             self.schedule.add(b)
-
     def calculateSellerTrust(self):
         for i in range(len(self.feedback)):
             if self.feedback[i] != []:
@@ -447,7 +453,6 @@ class Market(Model):
                     elif self.feedback[i][j] == False:
                         neg += 1
                 print(f"Seller No: {i}, Positive: {pos}, Negative: {neg}, Total: {pos+neg}")
-
     def storeData(self):
         buyerCols = ["wealth", "purchases", "riskAversion", "posInteractions", "negInteractions", "patience"]
         BuyerDF = pd.DataFrame(columns=buyerCols, index=range(self.numOfBuyers))
@@ -485,7 +490,6 @@ class Market(Model):
         self.dataReturn[0].append(BuyerDF)
         self.dataReturn[1].append(SellerDF)
         self.dataReturn[2].append(AttackTurn)
-
     def displayProgress(self):
         #clear()
         print(f"Epoch: {self.epoch} \n"
@@ -497,6 +501,20 @@ class Market(Model):
         AttackTurn = [AttackerRep, Attack.profit]
         self.newDataReturn.append(AttackTurn)
 
+    def UpdateListingDirectory(self):
+        self.listingDirectory = {"red": [], "blue": [], "green": [], "orange": [], "purple": [], "yellow": [],
+                                 "amber": [], "brown": [],
+                                 "pink": [], "cyan": [], "lilac": [], "magenta": [], "mauve": [], "mint": [],
+                                 "peach": [], "violet": [],
+                                 "sapphire": [], "sepia": [], "tan": [], "turqoise": [], "vanilla": [], "zomp": []}
+        listingKeys = self.listingDirectory.keys()
+        for x in range(len(listing)):
+            for y in range(len(listing[x][0])):
+                item = listing[x][0][y]
+                currentDir = self.listingDirectory[item]
+                currentDir.append(x)
+                self.listingDirectory[item] = currentDir
+
 
     def step(self):
         self.schedule.step()
@@ -504,6 +522,7 @@ class Market(Model):
         #self.storeData()
         self.newDataStore()
         self.displayProgress()
+        self.UpdateListingDirectory()
 
 def exportData(dataSet, fileName):
     pickle.dump(dataSet, open(fileName, "wb"))

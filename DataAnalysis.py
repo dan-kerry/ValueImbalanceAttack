@@ -383,7 +383,7 @@ def VariableValueAnalysis():
     plt.show()
 
 def main():
-    data = importData("ThresholdAnalysis/VariableThresholdAnalysis/Variable_Value_SemiRandom")
+    data = importData("7AugTest")
     #BuyerWealthAnalysis(data)
     #NoOfPurchases(data)
     #TrustScoreAnalysis(data)
@@ -392,7 +392,7 @@ def main():
     #RiskVsNegativeInteractions(data) #BuyerActivity3
     #SalesVsRating(data)
     #ValueImbalanceAnalysis(data) #AttackDataTest
-    #SingleRunAnalysis(data)
+    SingleRunAnalysis(data)
     #batch_analysis(data)
     #dataTest(data)
     #optimal()
@@ -400,7 +400,7 @@ def main():
     #ValueDiffSimple()
     #VariableValueAnalysis()
     #errorTest()
-    ErrorTest2(data)
+    #ErrorTest2(data)
 
 
 
