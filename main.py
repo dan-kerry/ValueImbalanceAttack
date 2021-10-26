@@ -14,7 +14,7 @@ items = ["red", "blue", "green", "orange", "purple", "yellow", "amber", "brown",
          "mauve", "mint", "peach", "violet", "sapphire", "sepia", "tan", "turqoise", "vanilla", "zomp"]
 
 prices = {"red": 10, "blue": 5, "green": 7, "orange": 12, "purple": 4, "yellow": 20, "amber": 25, "brown": 11,
-          "pink": 6, "cyan": 9, "lilac": 32, "magenta": 5, "mauve": 25, "mint": 13, "peach": 8, "violet": 30,
+          "pink": 6, "cyan": 9, "lilac": 32, "magenta": 5, "mauve": 25, "mint": 13, "peach": 8, "violet": 40,
           "sapphire": 12, "sepia": 5, "tan": 4, "turqoise": 18, "vanilla": 10, "zomp": 50}
 
 listing = []
@@ -36,17 +36,16 @@ def getList(quantity):
             desires.append(item)
     return desires
 
+def Extract(lst):
+    return [item[0] for item in lst]
+
+
 def sellerDishonestyBinary(list):
-    '''for x in range(len(list)):
-        if list[x][0] == True:
-            pos += 1
-        elif list[x][0] == False:
-            neg += 1
-        else:
-            pass'''
-    pos = list.count(True)
+    countList = Extract(list)
+    pos = countList.count(True)
     neg = len(list) - pos
-    return ((pos + 1) / (neg + pos + 2))
+    chance = (pos + 1) / (neg + pos + 2)
+    return chance
 
 def sellerDishonestyValueAdjusted(list):
     pos = 0
@@ -60,7 +59,8 @@ def sellerDishonestyValueAdjusted(list):
         return (pos + 1) / (neg + pos + 2)
     except:
         return 0.4
-
+def exportData(dataSet, fileName):
+    pickle.dump(dataSet, open(fileName, "wb"))
 
 class orderSheet():
     def __init__(self, BuyerID, SellerID, price, item, SaleDate = None, ExpectedArrivalDate = None, ActualArrivalDate = None):
@@ -74,7 +74,6 @@ class orderSheet():
 
     def __str__(self):
         return f"BuyerID: {self.BuyerID}, SellerID: {self.SellerID}, Price: {self.price}, Item: {self.item}, Due: {self.ExpectedArrivalDate}, Sale: {self.SaleDate}, Actual: {self.ActualArrivalDate}"
-
 class Buyer(Agent):
     def __init__(self, unique_id):
         self.unique_id = unique_id
@@ -106,22 +105,24 @@ class Buyer(Agent):
                 searchDirectory = Sim.listingDirectory[self.desires[x]]
                 for y in range(len(searchDirectory)):
                     #Selects item with greatest percentage discount
-                    if self.desires[x] in listing[searchDirectory[y]][0]:
+                    try:
                         ind = listing[searchDirectory[y]][0].index(self.desires[x])
-                        sellerPrice = listing[searchDirectory[y]][1][ind]
-                        discount = sellerPrice / self.MSRPs[x]
-                        if discount < MaxPercent:
+                    except:
+                        return None
+                    sellerPrice = listing[searchDirectory[y]][1][ind]
+                    discount = sellerPrice / self.MSRPs[x]
+                    if discount < MaxPercent:
+                        MaxPercent = discount
+                        MaxPercentPrice = sellerPrice
+                        MaxPercentInd = listing[searchDirectory[y]][2]
+                        MaxPercentItem = self.desires[x]
+                        DealFound = True
+                    elif discount == MaxPercent:
+                        if sellerPrice > MaxPercentPrice:
                             MaxPercent = discount
                             MaxPercentPrice = sellerPrice
                             MaxPercentInd = listing[searchDirectory[y]][2]
                             MaxPercentItem = self.desires[x]
-                            DealFound = True
-                        elif discount == MaxPercent:
-                            if sellerPrice > MaxPercentPrice:
-                                MaxPercent = discount
-                                MaxPercentPrice = sellerPrice
-                                MaxPercentInd = listing[searchDirectory[y]][2]
-                                MaxPercentItem = self.desires[x]
 
             MaxPercentResult = orderSheet(self.unique_id, MaxPercentInd, MaxPercentPrice, MaxPercentItem)
             if DealFound:
@@ -139,8 +140,7 @@ class Buyer(Agent):
             searchDirectory = Sim.listingDirectory[self.desires[0]]
             for q in range(len(searchDirectory)):
                 if self.desires[0] in listing[searchDirectory[q]][0]:
-                    sellerRep = sellerDishonestyBinary(Sim.feedback[listing[searchDirectory[q]][2]])
-                    #sellerRep = sellerDishonestyValueAdjusted(Sim.feedback[listing[searchDirectory[q]][2]])
+                    sellerRep = Sim.feedbackScores[listing[searchDirectory[q]][2]]
                     if sellerRep > self.riskAversion:
                         ind = listing[searchDirectory[q]][0].index(self.desires[0])
                         sellerPrice = listing[searchDirectory[q]][1][ind]
@@ -223,7 +223,7 @@ class Buyer(Agent):
 
     def makeMoney(self):
         #TODO: Increase complexity of wealth increase
-        earnings = int(random.triangular(2, 3, 4))
+        earnings = int(random.triangular(3, 4, 6))
         self.wealth += earnings
 
     def step(self):
@@ -231,10 +231,6 @@ class Buyer(Agent):
         self.evaluateOrders()
         self.newItems()
         self.makeMoney()
-
-        # print(f"BuyerID: {self.unique_id}, Desires: {self.desires}, Inventory: {self.inventory},
-        # Wealth: {self.wealth}")
-
 class Seller(Agent):
     def __init__(self, unique_id):
         self.unique_id = unique_id
@@ -332,39 +328,44 @@ class Seller(Agent):
     def step(self):
         self.orderCheck()
         self.updatePrices()
-
-
 class Attacker():
     def __init__(self):
         self.profit = 0
         self.dispatchTime = 4
-        self.crossoverPoint = 0.85
-        self.AttackItem = "zomp"
-
+        self.crossoverPoint = 0.9
+        self.honestSales = 0
+        self.dishonestSales = 0
+        self.AttackItem = "lilac"
+        self.start = 0
+        self.RatioTarget = 0.75
+        self.state = 'honest'
+        self.stopPoint = 0.7
     def reset(self):
         self.profit = 0
         self.dispatchTime = 4
-        self.crossoverPoint = 0.85
+        self.honestSales = 0
+        self.dishonestSales = 0
+        self.crossoverPoint = 0.9
+        self.state = 'honest'
 
     def createListing(self):
         fake_listing = [["mint", "peach"], [3, 3], 0]
         listing.append(fake_listing)
-
     def orderCheck(self):
         for y in range(len(Sim.orderTrack[0])):
             orderKey = Sim.orderTrack[0][y]
             if Sim.orderDict[orderKey].ActualArrivalDate == None:
                 if Sim.orderDict[orderKey].item != self.AttackItem:
                     Sim.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Sim.epoch
-                    #self.profit += Sim.orderDict[orderKey].price
+                    self.honestSales += 1
 
                 elif Sim.orderDict[orderKey].item == self.AttackItem:
                     Sim.orderDict[orderKey].ActualArrivalDate = self.dispatchTime + Sim.epoch + 500
                     self.profit += Sim.orderDict[orderKey].price
-
+                    self.dishonestSales += 1
     def valueImbalance(self):
-        lowPrice = 100
-        for x in range(len(listing)):
+        lowPrice = prices[self.AttackItem]
+        for x in range(len(listing), -1):
             if self.AttackItem in listing[x][0]:
                 z_index = listing[x][0].index(self.AttackItem)
                 z_price = listing[x][1][z_index]
@@ -373,30 +374,61 @@ class Attacker():
         newPrice = lowPrice - 1
         new_listing = [[self.AttackItem], [newPrice], 0]
         listing[-1] = new_listing
-
-
     def regularTrading(self):
         new_listing = [["mint", "peach"], [4, 4], 0]
         listing[-1] = new_listing
+    def ThresholdDM(self):
+        if Sim.feedbackScores[0] < self.crossoverPoint:
+            self.regularTrading()
+        elif Sim.feedbackScores[0] >= self.crossoverPoint:
+            self.valueImbalance()
+    def RatioDM(self):
+        currentRatio = (1 + self.honestSales) / (2 + self.honestSales + self.dishonestSales)
+        if currentRatio > self.RatioTarget:
+            self.valueImbalance()
+        elif currentRatio <= self.RatioTarget:
+            self.regularTrading()
+    def Periodic(self):
+
+        #cues = [120, 121, 490] #each specifies when current behaviour ends
+        '''for x in range(len(cues)):
+            if cues[x] >= Sim.epoch:
+                if x % 2 == 0:
+                    #print(f"{Sim.epoch} - Listing Honestly")
+                    self.regularTrading()
+                elif x % 2 != 0:
+                    #print(f"{Sim.epoch} - Listing Dishonestly")
+                    self.valueImbalance()'''
+                #break
+        if Sim.epoch <= self.start:
+            self.regularTrading()
+        elif Sim.epoch > self.start:
+            self.valueImbalance()
+    def endPoint(self):
+        if Sim.feedbackScores[0] > 0.99:
+            self.state = 'attack'
+        if Sim.feedbackScores[0] < self.stopPoint:
+            self.state = 'honest'
+
+        if self.state == 'honest':
+            self.regularTrading()
+        if self.state == 'attack':
+            self.valueImbalance()
 
     def act(self):
         if Sim.epoch == 100:
             self.createListing()
         elif Sim.epoch > 100:
-            if sellerDishonestyBinary(Sim.feedback[0]) < self.crossoverPoint:
-                self.regularTrading()
-            elif sellerDishonestyBinary(Sim.feedback[0]) >= self.crossoverPoint:
-                self.valueImbalance()
+            self.ThresholdDM()
         self.orderCheck()
-
-
 class Market(Model):
-    def __init__(self, B = 200, S = 50):
+    def __init__(self, B = 150, S = 150):
         self.numOfBuyers = B
         self.numOfSellers = S
         self.schedule = RandomActivation(self)
         self.epoch = 0
         self.feedback = []
+        self.feedbackScores = []
         self.orderDict = {0: None}
         self.orderTrack = []
 
@@ -406,8 +438,13 @@ class Market(Model):
 
         for x in range(self.numOfBuyers*2):
             self.orderTrack.append([])
+
         for x in range(self.numOfSellers * 2):
             self.feedback.append([])
+
+        for x in range(self.numOfSellers * 2):
+            self.feedbackScores.append([])
+
         #dataReturn is structured as [[Seller Data], [Buyer Data], [Attack Data]]
         self.dataReturn = [[], [], []]
         self.newDataReturn = []
@@ -495,12 +532,10 @@ class Market(Model):
         print(f"Epoch: {self.epoch} \n"
               f"Buyers: {self.numOfBuyers} \n"
               f"Sellers: {self.numOfSellers} \n")
-
     def newDataStore(self):
         AttackerRep = sellerDishonestyBinary(Sim.feedback[0])
-        AttackTurn = [AttackerRep, Attack.profit]
+        AttackTurn = [AttackerRep, Attack.profit, Attack.dishonestSales]
         self.newDataReturn.append(AttackTurn)
-
     def UpdateListingDirectory(self):
         self.listingDirectory = {"red": [], "blue": [], "green": [], "orange": [], "purple": [], "yellow": [],
                                  "amber": [], "brown": [],
@@ -515,31 +550,34 @@ class Market(Model):
                 currentDir.append(x)
                 self.listingDirectory[item] = currentDir
 
+    def UpdateFeedback(self):
+        for x in range(1, len(self.feedback), 2):
+            self.feedbackScores[x] = sellerDishonestyBinary(self.feedback[x])
+        self.feedbackScores[0] = sellerDishonestyBinary(self.feedback[0])
+        '''for x in range(1, len(self.feedback), 2):
+            self.feedbackScores[x] = sellerDishonestyValueAdjusted(self.feedback[x])
+        self.feedbackScores[0] = sellerDishonestyValueAdjusted(self.feedback[0])'''
 
     def step(self):
+        self.UpdateListingDirectory()
         self.schedule.step()
         self.epoch += 1
         #self.storeData()
+        #self.displayProgress()
+        self.UpdateFeedback()
         self.newDataStore()
-        self.displayProgress()
-        self.UpdateListingDirectory()
-
-def exportData(dataSet, fileName):
-    pickle.dump(dataSet, open(fileName, "wb"))
 
 Sim = Market()
 Attack = Attacker()
-
-def run(var):
+def run():
     steps = 500
     for x in range(steps):
-        Attack.crossoverPoint = var
+
         Attack.act()
         Sim.step()
-    #return Sim.newDataReturn
-    exportData(Sim.newDataReturn, "7AugTest")
+    return Sim.newDataReturn
+    #exportData(Sim.newDataReturn, "8AugTest")
 
-run(0.85)
 
 
 

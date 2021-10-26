@@ -1,7 +1,10 @@
 import pickle
 import matplotlib.pyplot as plt
-import pandas
-import statistics as stat
+import numpy as np
+
+def stylize_axes(ax):
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
 
 class orderSheet:
@@ -11,9 +14,11 @@ class orderSheet:
 def quartiles(data):
     data.sort()
     half_list = int(len(data) // 2)
-    upper_quartile = stat.median(data[-half_list])
-    lower_quartile = stat.median(data[:half_list])
-    return [upper_quartile, lower_quartile]
+    iqr = half_list // 2
+    median = data[half_list]
+    upper_quartile = data[half_list + iqr]
+    lower_quartile = data[half_list - iqr]
+    return [upper_quartile, median, lower_quartile]
 
 
 def importData(filename):
@@ -98,12 +103,13 @@ def SingleRunAnalysis(data):
     ax2.plot(wealth, color="blue")
     ax.set_xlabel("Epoch", fontsize=10)
     ax.set_ylabel("Attacker Reputation", color="red", fontsize=10)
-    ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
+    ax2.set_ylabel("Attacker Profit", color="blue", fontsize=10)
+    stylize_axes(ax)
     plt.show()
+    #fig.savefig("Figures/Figure11a.pdf", bbox_inches='tight')
 
 def DictionaryComprehension(data):
     pass
-
 def batch_analysis(data):
     output_list = []
     output_list2 = []
@@ -124,9 +130,12 @@ def batch_analysis(data):
     ax.set_ylabel("Attacker Reputation", color="red", fontsize=10)
     ax2.set_ylabel("Attacker Wealth", color="blue", fontsize=10)
     ax.set_xlabel("Epoch", fontsize=10)
-    plt.show()
+    stylize_axes(ax)
 
+    plt.show()
+    #fig.savefig("Figures/Figure4a.pdf", bbox_inches='tight')
 def ErrorTest2(data):
+    print(len(data))
     output_list = []
     for y in range(len(data[0])):
         totalWealth = 0
@@ -135,24 +144,26 @@ def ErrorTest2(data):
         totalWealth /= len(data)
         output_list.append(totalWealth)
 
-
+    fig, ax = plt.subplots()
     for j in range(len(data)):
         newLine = []
         for k in range(len(data[j])):
             newLine.append(data[j][k][1])
         plt.plot(newLine, alpha=0.1, color='black')
-    plt.plot(output_list, color='red')
+    plt.plot(output_list, color='red', label='7-turn Rolling Average')
+    plt.xlabel('Epoch')
+    plt.ylabel('Damage (Cost to Buyers)')
+    stylize_axes(ax)
+    plt.legend()
     plt.show()
-
+    #fig.savefig("Figures/Figure10c.pdf", bbox_inches='tight')
 def dataTest(data):
     print(len(data[3]))
-
 def averageFinalValue(data):
     total = 0
     for x in range(len(data)):
         total += data[x][-1][1]
     return total / len(data)
-
 def optimal():
     o4 = averageFinalValue(importData("Results/Simple_04_HighValue"))
     o5 = averageFinalValue(importData("Results/Simple_05_HighValue"))
@@ -170,9 +181,8 @@ def optimal():
     x_axis = [0.4, 0.5, 0.6, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
     plt.plot(x_axis, y_axis)
     plt.show()
-
 def StaticThreshold():
-    data1 = importData("ThresholdAnalysis/ConstantThresholdAnalysis/BaseTRS_LowerRA")
+    data1 = importData("Threshold/SimpleTRS_Zomp")
     data2 = importData("ThresholdAnalysis/ConstantThresholdAnalysis/BaseTRS_HigherRA")
     data3 = importData("ThresholdAnalysis/ConstantThresholdAnalysis/AdvancedTRS_HigherRA")
     data4 = importData("ThresholdAnalysis/ConstantThresholdAnalysis/AdvancedTRS_LowerRA")
@@ -210,7 +220,6 @@ def StaticThreshold():
 
     plt.legend()
     plt.show()
-
 def errorTest():
     data1 = importData("ValueDifferentiation/LowValueAttack_ValueBased")
 
@@ -241,9 +250,6 @@ def errorTest():
 
     plt.legend()
     plt.show()
-
-
-
 def ValueDiff():
     data1 = importData("ValueDifferentiation/LowValueAttack_ValueBased")
     data2 = importData("ValueDifferentiation/MidValueAttack_ValueBased")
@@ -282,7 +288,6 @@ def ValueDiff():
     plt.title('Analysis of Profit with a Value-Based TRS')
     plt.legend()
     plt.show()
-
 def ValueDiffSimple():
     data1 = importData("ValueDifferentiation/LowValueAttack_Regular")
     data2 = importData("ValueDifferentiation/MidValueAttack_Regular")
@@ -321,7 +326,6 @@ def ValueDiffSimple():
     plt.title('Analysis of Profit with a Simple TRS')
     plt.legend()
     plt.show()
-
 def VariableValueAnalysis():
     data1 = importData("ThresholdAnalysis/VariableThresholdAnalysis/Constant085_Value")
     data2 = importData("ThresholdAnalysis/VariableThresholdAnalysis/Variable_Value_300_0_85")
@@ -381,9 +385,381 @@ def VariableValueAnalysis():
     plt.title('Analysis of Profit when using Variable Threshold')
     plt.legend()
     plt.show()
+def highestValues(data):
+    max_values = []
+    for run in range(len(data)):
+        highest = 0
+        for turn in range(len(data[run])):
+            if data[run][turn][1] > highest:
+                highest = data[run][turn][1]
+        max_values.append(highest)
+    return max_values
+def newStaticPointBatch():
+    testValues = [0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94,
+                    0.95, 0.96, 0.97, 0.98,  0.99]
+    data1 = importData("Threshold/SimpleTRS_ZompII")
+    data1_Value = []
+    data1_Error = []
+    for value in range(len(data1)):
+        data1_Value.append(np.median(highestValues(data1[value])))
+        data1_Error.append(quartiles(highestValues(data1[value])))
 
+    data1_Value = []
+    data1_upper = []
+    data1_lower = []
+    for x in range(len(data1_Error)):
+        data1_Value.append(data1_Error[x][1])
+        data1_lower.append(data1_Error[x][0])
+        data1_upper.append(data1_Error[x][2])
+
+    fig, (ax1) = plt.subplots(1, 1)
+    #ax1.errorbar(testValues, data2_Value, yerr=data2_Error)
+    ax1.fill_between(testValues, data1_upper, data1_lower, color='black', alpha=0.3)
+    ax1.plot(testValues, data1_Value, marker='x', markeredgecolor='black')
+    plt.show()
+def ValueAnalysis(data):
+    prices = [8, 12, 18, 20, 25, 32, 40, 50]
+    #prices = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 25, 32, 40, 50]
+    max_value = 50
+    x_axis = []
+    data_Value = []
+    data_Errors = []
+    upper = []
+    lower = []
+    for x in prices:
+        x_axis.append(((x - 4) / 4) * 100)
+    for value in range(1, len(data)):
+        newData = sorted(highestValues(data[value]))
+        data_Value.append(quartiles(highestValues(data[value]))[1])
+        upper.append( quartiles(newData)[0] )
+        lower.append( quartiles(newData)[2] )
+    fig, (ax1) = plt.subplots()
+    plt.xlim(0, 1200)
+    '''for x in range(len(upper)):
+        plt.vlines(x_axis[x], lower[x], upper[x])'''
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    ax1.fill_between(x_axis, lower, upper, color='black', alpha=0.3)
+    ax1.plot(x_axis, data_Value, marker='x', markeredgecolor='black')
+    plt.xlabel('Value of Attack Item (% of Honest Sale Item)')
+    plt.ylabel('Damage (Cost to Buyers)')
+    stylize_axes(ax1)
+    plt.show()
+    #fig.savefig("Figures/Figure9.pdf", bbox_inches='tight')
+def ValueAnalysisScatter(data):
+    prices = [8, 12, 18, 20, 25, 32, 40, 50]
+    max_value = 50
+    x_axis = []
+    xx = [0, 8000]
+    data_Value = []
+    data_Errors = []
+    upper = []
+    lower = []
+    for x in prices:
+        x_axis.append((x / max_value) * 100)
+    for value in range(1, len(data)):
+        newData = sorted(highestValues(data[value]))
+        data_Value.append(quartiles(highestValues(data[value]))[1])
+        upper.append(quartiles(newData)[0])
+        lower.append(quartiles(newData)[2])
+    fig, (ax1) = plt.subplots(1, 1)
+    x = prices
+    y = data_Value
+    plt.scatter(x, y, color='black', label='Original Data Points')
+    plt.xlim([0, 110])
+    plt.ylim([0, 9100])
+
+    z = np.polyfit(x, y, 1)
+    p = np.poly1d(z)
+    plt.plot(xx, p(xx), "r--")
+
+    black_data = importData("ValueAnalysis/Black2")
+    blackData = quartiles(highestValues(black_data))[1]
+    bd1 = quartiles(highestValues(black_data))[0]
+    bd2 = quartiles(highestValues(black_data)[75:125])[2]
+    plt.vlines(80, bd1, bd2, label='IQR of result set')
+    plt.scatter(80, blackData, marker='+', label='New Data Point')
+
+    plt.xlabel('Value of Attack Item (True Value)')
+    plt.ylabel('Damage (Cost to Buyers)')
+    stylize_axes(ax1)
+    plt.legend()
+    plt.show()
+    fig.savefig("Figures/Figure8.pdf", bbox_inches='tight')
+def DualValueAnalysis():
+    OriginData = importData("ValueAnalysis/VB_ReRun")
+    ProofData = importData("ValueAnalysis/VB_Proof_ReRun")
+    data7 = importData("AdditionalDataPointsF9/7")
+
+    prices = [5, 7, 12, 18, 20, 25, 32, 40, 50]
+    max_value = 50
+    x_axis = []
+    data_Value = []
+    proof_data = []
+    increase = []
+
+    for x in prices:
+        x_axis.append((x / max_value) * 100)
+    d1 = quartiles(sorted(highestValues(OriginData[0])))
+    data_Value.append(d1[1])
+    d7 = quartiles(sorted(highestValues(data7)))
+    data_Value.append(d7[1])
+
+    for value in range(2, len(OriginData)):
+        data_Value.append(quartiles(highestValues(OriginData[value]))[1])
+    for x in range(len(ProofData)):
+        proof_data.append(quartiles(highestValues(ProofData[x]))[1])
+    for y in range(len(data_Value)):
+        temp = proof_data[y] - data_Value[y]
+        increase.append((temp/data_Value[y]) * 100)
+    fig, (ax1) = plt.subplots()
+    ax2 = ax1.twinx()
+    ax1.plot(x_axis, data_Value, color='black', label='500 Epochs')
+    ax1.plot(x_axis, proof_data, color='black',linestyle='dashed', label='1000 Epochs')
+    ax2.bar(x_axis, increase, alpha=0.7)
+    ax1.set_xlabel('Value of Attack Item (% of Honest Sale Item)')
+    ax1.set_ylabel('Damage (Cost to Buyers)', color='black')
+    ax2.set_ylabel('Percentage Increase', color='blue')
+    ax1.legend()
+    plt.show()
+    #fig.savefig("Figures/Figure13.pdf", bbox_inches='tight')
+def DataParse(data, target):
+    output = []
+    for x in range(len(data)):
+        flag = False
+        for y in range(len(data[x])):
+
+            if data[x][y][1] > target:
+                flag = True
+        if not flag:
+            output.append(data[x])
+    return output
+def TRS():
+    data = importData("Results1/SimpleTRS")
+    data2 = importData("Results1/VB_TRS")
+    output_list = []
+    output_list2 = []
+    for y in range(len(data[0])):
+        totalWealth2 = 0
+        totalWealth = 0
+        for x in range(len(data)):
+            totalWealth += data[x][y][1]
+            totalWealth2 += data2[x][y][1]
+
+        totalWealth /= len(data)
+        totalWealth2 /= len(data2)
+
+
+        output_list.append(totalWealth)
+        output_list2.append(totalWealth2)
+
+    fig, ax = plt.subplots()
+    ax.plot(output_list, color="red", label='Simple TRS')
+    ax.plot(output_list2, color="blue", label='Value-Based TRS')
+
+    ax.set_ylabel("Attacker Profit", color="black", fontsize=10)
+    ax.set_xlabel("Epoch", fontsize=10)
+    plt.xlim([0, 750])
+    plt.ylim([0, 7000])
+    stylize_axes(ax)
+    plt.legend()
+    plt.show()
+    #fig.savefig("Figures/Figure3.pdf", bbox_inches='tight')
+def DataComprehension(data):
+    count = 0
+    for x in range(len(data)):
+        if data[x][-1][1] > 400:
+            count += 1
+    print(count)
+def ValueAnalysis_Additional(data):
+    data7 = importData("AdditionalDataPointsF9/7")
+
+    prices = [5, 7, 12, 18, 20, 25, 32, 40, 50]
+    #prices = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 25, 32, 40, 50]
+    max_value = 50
+    x_axis = []
+    data_Value = []
+    upper = []
+    lower = []
+    for x in prices:
+        x_axis.append(((x - 4) / 4) * 100)
+
+    d1 = quartiles(sorted(highestValues(data[0])))
+    data_Value.append(d1[1])
+    upper.append(d1[0])
+    lower.append(d1[2])
+
+    d7 = quartiles(sorted(highestValues(data7)))
+    data_Value.append(d7[1])
+    upper.append(d7[0])
+    lower.append(d7[2])
+
+    for value in range(2, len(data)):
+        newData = sorted(highestValues(data[value]))
+        data_Value.append(quartiles(highestValues(data[value]))[1])
+        upper.append(quartiles(newData)[0])
+        lower.append(quartiles(newData)[2])
+    fig, (ax1) = plt.subplots()
+    plt.xlim(0, 1200)
+    '''for x in range(len(upper)):
+        plt.vlines(x_axis[x], lower[x], upper[x])'''
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    ax1.fill_between(x_axis, lower, upper, color='black', alpha=0.3)
+    ax1.plot(x_axis, data_Value, marker='x', markeredgecolor='black')
+    plt.xlabel('Value of Attack Item (% of Honest Sale Item)')
+    plt.ylabel('Damage (Cost to Buyers)')
+    stylize_axes(ax1)
+    plt.show()
+    #fig.savefig("Figures/Figure9.pdf", bbox_inches='tight')
+def PeriodAnalysis(data):
+    #prices = [125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475]
+    prices = [250, 500, 750, 1000, 1250, 1500, 1750]
+    max_value = 50
+    x_axis = []
+    data_Value = []
+    data_Errors = []
+    upper = []
+    lower = []
+    for x in range(len(prices)):
+        x_axis.append(prices[x])
+
+    for value in range(len(data)):
+        data_Value.append(quartiles(highestValues(data[value]))[1])
+
+    fig, (ax1) = plt.subplots()
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    ax1.plot(x_axis, data_Value, marker='x', markeredgecolor='black')
+    plt.xlabel('Value of Attack Item (% of Honest Sale Item)')
+    plt.ylabel('Damage (Cost to Buyers)')
+    stylize_axes(ax1)
+    plt.show()
+    #fig.savefig("Figures/Figure9.pdf", bbox_inches='tight')
+def EndPointAnalysis():
+    data = importData("Final/R3/Simple_Endpoint2")
+    #endPoints = [0.4, 0.42, 0.45, 0.47, 0.5, 0.52, 0.55, 0.57, 0.6, 0.62, 0.65, 0.67, 0.7, 0.75, 0.8, 0.85, 0.87, 0.9, 0.91]
+    endPoints = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    data1_Value = []
+    data1_Error = []
+    for value in range(len(data)):
+        data1_Value.append(np.median(highestValues(data[value])))
+        data1_Error.append(quartiles(highestValues(data[value])))
+    data1_Value = []
+    data1_upper = []
+    data1_lower = []
+    for x in range(len(data1_Error)):
+        data1_Value.append(data1_Error[x][1])
+        data1_lower.append(data1_Error[x][0])
+        data1_upper.append(data1_Error[x][2])
+
+    fig, (ax1) = plt.subplots(1, 1)
+    # ax1.errorbar(testValues, data2_Value, yerr=data2_Error)
+    ax1.fill_between(endPoints, data1_upper, data1_lower, color='black', alpha=0.3)
+    ax1.plot(endPoints, data1_Value, marker='x', markeredgecolor='black')
+    plt.show()
+def RatioAnalysis():
+    data = importData("Final/R3/VB_Ratio")
+    endPoints = [0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.72, 0.75, 0.77,0.78,0.79, 0.8, 0.81, 0.82, 0.83, 0.84,
+               0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.995, 0.999]
+    data1_Value = []
+    data1_Error = []
+    for value in range(len(data)):
+        data1_Value.append(np.median(highestValues(data[value])))
+        data1_Error.append(quartiles(highestValues(data[value])))
+    data1_Value = []
+    data1_upper = []
+    data1_lower = []
+    for x in range(len(data1_Error)):
+        data1_Value.append(data1_Error[x][1])
+        data1_lower.append(data1_Error[x][0])
+        data1_upper.append(data1_Error[x][2])
+
+    fig, (ax1) = plt.subplots(1, 1)
+    # ax1.errorbar(testValues, data2_Value, yerr=data2_Error)
+    ax1.fill_between(endPoints, data1_upper, data1_lower, color='black', alpha=0.3)
+    ax1.plot(endPoints, data1_Value, marker='x', markeredgecolor='black')
+    plt.show()
+
+def VolumeAnalysis():
+    LineData = importData('Final/R2/Simple')
+    VolumeData = importData('Final/R2/Simple_Volume')
+    prices = [5, 7, 12, 18, 20, 25, 32, 40, 50]
+    x_axis = []
+    data_Value = []
+    data_Errors = []
+    upper = []
+    lower = []
+    volume = []
+    for x in prices:
+        x_axis.append(((x - 4) / 4) * 100)
+    for value in range(len(LineData)):
+        newData = sorted(highestValues(LineData[value]))
+        data_Value.append(quartiles(highestValues(LineData[value]))[1])
+        upper.append(quartiles(newData)[0])
+        lower.append(quartiles(newData)[2])
+
+    for y in range(len(VolumeData)):
+        total = 0
+        for j in range(len(VolumeData[y])):
+            batchVol = VolumeData[y][j][-1][2]
+            total += batchVol
+        volume.append(total/len(VolumeData[y]))
+
+    fig, (ax1) = plt.subplots()
+    ax2 = ax1.twinx()
+    plt.xlim(0, 1200)
+
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    ax1.fill_between(x_axis, lower, upper, color='black', alpha=0.3)
+    ax1.plot(x_axis, data_Value, marker='x', markeredgecolor='black', alpha=0.3)
+    ax2.bar(x_axis, volume, width=30)
+    ax1.set_xlabel('Value of Attack Item (% of Honest Sale Item)')
+    ax1.set_ylabel('Damage (Cost to Buyers)')
+    ax2.set_ylabel('Average Total Dishonest Sales')
+    stylize_axes(ax1)
+    plt.show()
+    #fig.savefig("Figures/Figure9.pdf", bbox_inches='tight')
+
+def MultiRep():
+    data1 = importData("Final/R3/VB_StartPoints")[1]
+    data5 = importData("Final/R3/VB_StartPoints")[5]
+    data6 = importData("Final/R3/VB_StartPoints")[6]
+
+    output_list1 = []
+    output_list5 = []
+    output_list6 = []
+
+    for y in range(len(data1[0])):
+        totalRep1 = 0
+        totalRep5 = 0
+        totalRep6 = 0
+        for x in range(len(data1)):
+            totalRep1 += data1[x][y][1]
+            totalRep5 += data5[x][y][1]
+            totalRep6 += data6[x][y][1]
+
+        totalRep1 /= len(data1)
+        totalRep5 /= len(data5)
+        totalRep6 /= len(data6)
+
+        output_list1.append(totalRep1)
+        output_list5.append(totalRep5)
+        output_list6.append(totalRep6)
+
+    fig, ax = plt.subplots()
+    ax.plot(output_list1, color="red", label="0.5")
+    ax.plot(output_list5, color="green", label="0.8")
+    ax.plot(output_list6, color="blue", label="0.85")
+
+    plt.legend()
+    ax.set_xlabel("Epoch", fontsize=10)
+    stylize_axes(ax)
+    plt.show()
+    #fig.savefig("Figures/Figure4a.pdf", bbox_inches='tight')
 def main():
-    data = importData("7AugTest")
+    data = importData("Final/R3/VB_EndPoint")[0]
     #BuyerWealthAnalysis(data)
     #NoOfPurchases(data)
     #TrustScoreAnalysis(data)
@@ -392,16 +768,27 @@ def main():
     #RiskVsNegativeInteractions(data) #BuyerActivity3
     #SalesVsRating(data)
     #ValueImbalanceAnalysis(data) #AttackDataTest
-    SingleRunAnalysis(data)
-    #batch_analysis(data)
+    #SingleRunAnalysis(data[-1][89])
+    batch_analysis(data)
     #dataTest(data)
     #optimal()
     #StaticThreshold()
     #ValueDiffSimple()
     #VariableValueAnalysis()
     #errorTest()
-    #ErrorTest2(data)
-
+    #ErrorTest2(DataParse(data, 1700))
+    #newStaticPointBatch()
+    #ValueAnalysis(data)
+    #ValueAnalysisScatter(data)
+    #DualValueAnalysis()
+    #TRS()
+    #DataComprehension(data[-4])
+    #ValueAnalysis_Additional(data)
+    #PeriodAnalysis(data)
+    #EndPointAnalysis()
+    #VolumeAnalysis()
+    #RatioAnalysis()
+    #MultiRep()
 
 
 main()
